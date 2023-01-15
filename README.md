@@ -36,6 +36,34 @@ To restart all the containers:
 
     docker-compose up -d --force-recreate
 
+To watch container logs:
+
+    docker logs -f container_name
+
+To enter the shell of the container:
+
+    docker exec -it container_name bash||sh
+
+To stop and remove all containers:
+
+    docker ps -qa |xargs -I % sh -c 'docker stop % && docker rm -v %'
+
+Do not print stderr (1) / stdout (2) from the container logs:
+
+    docker logs containerName -f 2>/dev/null
+
+Print docker logs with additional timestamps:
+
+    docker logs -t -f containerName
+
+Pass comamnd with args to a container process:
+
+    docker exec -it -- containerName nginx -s reload
+
+Print full container start command:
+
+    docker ps --no-trunc
+
 #### To work with MySQL
 
 To reset expired mysql root password:
