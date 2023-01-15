@@ -8,7 +8,7 @@ import json
 class NewsPars:
 
     def get_site_list(cls):
-        file = open('tags.txt', 'r')
+        file = open('tags.json', 'r')
         filer = file.read()
         dict_news = json.loads(filer)
         return dict_news
