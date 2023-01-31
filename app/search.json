@@ -1,0 +1,9 @@
+{
+  "https://www.nytimes.com/search?query={}" : "divclass_=css-e1lvw9",
+  "https://www.nbcnews.com/search/?q={}" : "divclass_=gsc-webResult gsc-result",
+  "https://www.euronews.com/search?query={}" : "h3class_=m-object__title qa-article-title",
+  "https://www.washingtonpost.com/search/?query={}&facets=%7B%22time%22%3A%22all%22%2C%22sort%22%3A%22relevancy%22%2C%22section%22%3A%5B%5D%2C%22author%22%3A%5B%5D%7D": "articleclass_=single-result mt-sm pb-sm",
+  "https://www.bbc.co.uk/search?q={}&d=HOMEPAGE_GNL": "divclass_=ssrcss-1f3bvyz-Stack e1y4nx260",
+  "https://abcnews.go.com/search?searchtext={}" : "h2class_="
+
+}

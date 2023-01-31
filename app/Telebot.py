@@ -8,7 +8,7 @@ def root():
 
 @telebot.route('/getnews', methods=['GET'])
 def main():
-    from ParseNews import NewsPars
+    from Main import NewsPars
     a = NewsPars()
     return f'{a.getnews()}', 200
 
