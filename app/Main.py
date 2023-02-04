@@ -11,57 +11,137 @@ from datetime import datetime
 import pandas as pd
 import telebot
 
-def get_search_news(value):
 
-    value = value.title()
-    list_news = []
+class ParseNews:
 
-    file = open('search.json', 'r')
-    filer = file.read()
-    dict_news = json.loads(filer)
+    def get_search_news(self,value):
 
-    # Установка аргументов для Chrome
-    chrome_options = Options()
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--headless")
+        value = value.title()
+        list_news = []
 
-    webdriver_service = Service("chromedriver/chromedriver") ## path to where you saved chromedriver binary
-    browser = webdriver.Chrome(service=webdriver_service,options=chrome_options)
-    #{'site': 'https://www.bbc.co.uk/search?q={}&d=HOMEPAGE_GNL',
-    # 'text': 'divclass_=ssrcss-1mb7gc4-PromoSwitchLayoutAtBreakpoints e3z3r3u0',
-    # 'date': 'spanclass_=ssrcss-1if1g9v-MetadataText ecn1o5v1', 'formatdate': '%d %B %Y'}
+        # взять данные из базы сайтов
+        file = open('search.json', 'r')
+        filer = file.read()
+        dict_news = json.loads(filer)
 
-    for news in dict_news:
+        # Установка аргументов для Chrome
+        chrome_options = Options()
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--headless")
 
-        # Проверка кол-ва вводимых слов
-        if len(value.split()) > 1:
-            browser.get(news['site'].format('%20'.join(value.split())))
-        else:
-            browser.get(news['site'].format(value))
+        webdriver_service = Service("chromedriver/chromedriver")
+        browser = webdriver.Chrome(service=webdriver_service,options=chrome_options)
 
-        soup = bs(browser.page_source, 'lxml')
+        for news in dict_news:
 
-        # browser.quit()
-        tags = news['text'].split('class_=')
-        datatags = news['date'].split('class_=')
-        res = soup.find_all(tags[0], class_=tags[1], limit=3)
-
-        for i in res:
-
-            data = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator= ' ')
-            data = datetime.strptime(data,news['formatdate']).strftime('%Y-%m-%d')
-
-            if 'http' in i.a.get('href'):
-                list_news.append([i.a.get_text(strip=True, separator= ' '),i.a.get('href'), value,data])
+            # Проверка кол-ва вводимых слов
+            if len(value.split()) > 1:
+                browser.get(news['site'].format('%20'.join(value.split())))
             else:
-                link = re.match('^h.*\.(com|uk|org)', news["site"] ).group()
-                print(link)
-                list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value,data])
+                browser.get(news['site'].format(value))
 
-    return list_news
+            # Получение html и получения тэгов
+            soup = bs(browser.page_source, 'lxml')
+            tags = news['text'].split('class_=')
+            datatags = news['date'].split('class_=')
+            res = soup.find_all(tags[0], class_=tags[1], limit=3)
+
+            for i in res:
+
+                date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator= ' ')
+                date = self.get_public_date(date,news['site'])
+
+                if 'http' in i.a.get('href'):
+                    list_news.append([i.a.get_text(strip=True, separator= ' ').replace('\xad',""),i.a.get('href'), value,date])
+                else:
+                    link = re.match('^h.*\.(com|uk|org)', news["site"] ).group()
+                    list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value,date])
+
+        return list_news
+
+    def get_add_news(self,value):
+
+        list = self.get_search_news(value)
+
+        # Создание соединения с БД
+        connection= pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
+                                 charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+
+        with connection:
+            with connection.cursor() as cursor:
+                #Isert new values
+                for i in list:
+                    insert = "INSERT INTO `News` (`News`,`Link`,`Tags`,`Datepublisher`,`DateInsert`) VALUES (%s, %s, %s, %s, %s)"
+                    cursor.execute(insert, (i[0],i[1],i[2],i[3],self.get_time_now()))
+                connection.commit()
+
+    def get_show_news(self,value):
+        '''Show news  DataBase'''
+        global connection
+
+        with connection:
+            with connection.cursor() as cursor:
+                sql = "SELECT * FROM `News` WHERE `Tags` = '{}'".format(value)
+                cursor.execute(sql)
+                result = cursor.fetchall()
+                news = []
+                for i in result:
+                    news.append((i['News'], i['Link']))
+                    connection.commit()
+                return news
+    def get_time_now(self):
+        data = datetime.now().strftime("%d-%m-%Y %H:%M:%S.%f")
+        return data
+
+    def get_public_date(self,value,site):
+        """Переводит даты публикаций с сайтов в формат строки """
+
+        if len(value) == 0:
+            return self.get_time_now()
+
+        elif "www.aljazeera.com" in site:
+            data = re.search(r'\d ... \d{4}',value).group()
+            data = datetime.strptime(data, '%d %b %Y').strftime('%d-%m-%Y')
+            return data
+
+        elif "www.bbc.co.uk" in site:
+            data = re.search(r'\d\d .+ \d{4}', value).group()
+            data = datetime.strptime(data, '%d %B %Y').strftime('%d-%m-%Y')
+            return data
+
+        elif "www.nytimes.com" in site:
+            if 'ago' in value:
+                return self.get_time_now()
+            data = re.search(r'\w{1,}\. \d{1,2}', value).group()
+            data = datetime.strptime(data, '%b. %d').strftime('%d-%m') + '-2023'
+            return data
+
+        elif "www.washingtonpost.com" in site:
+            data = re.search(r'\w{1,} \d{1,2}\, \d{4}', value).group()
+            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
+            return data
+
+        elif "www.ndtv.com" in site:
+            data = re.search(r'\w+  \d{1,2}\, \d{4}', value).group()
+            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
+            return data
+
+        elif "globalnews" in site:
+            if 'hour' in value:
+                data = self.get_time_now()
+                return data
+            data = re.search(r'\w+ \d{1,2}', value).group()
+            data = datetime.strptime(data, '%b %d').strftime('%d-%m') + "-2023"
+            return data
+
+        elif "www.thetimes.co.uk" in site:
+            data = re.search(r'\w+ \d{1,2} \d{4}', value).group()
+            data = datetime.strptime(data, '%B %d %Y').strftime('%d-%m-%Y')
+            return data
 
 
 
 
-print(get_search_news('ukraine'))
+
+
 
