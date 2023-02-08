@@ -108,23 +108,6 @@ def get_user_text(message):
             bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
 
 
-
-    # elif message.text == '✅ Subscribe':
-    #     if user.get_check_user(message.from_user.id):
-    #
-    #         bot.send_message(message.chat.id, 'You are already subscribed', parse_mode='html')
-    #
-    #     else:
-    #
-    #         user.get_add_user(message.from_user.id)
-    #         bot.send_message(message.chat.id, 'Subscription completed successfully,\n', parse_mode='html')
-    #
-    #     markup = types.InlineKeyboardMarkup()
-    #     btn1 = types.InlineKeyboardButton("🏢 Personal account", callback_data='🏢 Personal account')
-    #     markup.add(btn1)
-    #
-    #     bot.send_message(message.chat.id, 'please go to your account', parse_mode='html', reply_markup=markup)
-    #
     # elif message.text == "🚫 Unsubscribe":
     #     if user.get_check_user(message.from_user.id):
     #         tag.get_all_delete_tags(message.from_user.id)
