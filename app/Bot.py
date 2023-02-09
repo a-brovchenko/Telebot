@@ -71,12 +71,10 @@ def characters_page_callback(call):
     bot.delete_message(call.message.chat.id,call.message.message_id)
     send_news_page(call.message, page)
 def send_news_page(message, page=1):
-    # f"<b>News:  </b>{news[0]}\n" + '<a href="{}">Source</a>'
+    print(message.chat.id)
     character_pages = [f"<b><a href='{x[1]}'>Source</a></b>" for x in parse_news.get_show_news('Germany')]
     paginator = InlineKeyboardPaginator(len(character_pages),current_page=page,data_pattern='character#{page}')
     bot.send_message(message.chat.id, character_pages[page-1],reply_markup=paginator.markup,parse_mode='HTML')
-
-
 
 @bot.message_handler(content_types=['text'])
 def get_user_text(message):
@@ -120,6 +118,6 @@ def get_user_text(message):
 
 
 
+    # bot.send_message(346488140,'text', parse_mode='HTML')
+
 bot.polling(none_stop=True)
-
-
