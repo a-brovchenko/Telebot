@@ -1,13 +1,14 @@
 import re
+import requests
 from bs4 import BeautifulSoup as bs
 import pymysql.cursors
 import json
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from datetime import datetime
+from datetime import timedelta
 import schedule
 import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 
 class ParseNews:
@@ -22,38 +23,49 @@ class ParseNews:
         filer = file.read()
         dict_news = json.loads(filer)
 
-        # Установка аргументов для Chrome
-        chrome_options = Options()
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--headless")
-
-        webdriver_service = Service("chromedriver/chromedriver")
-        browser = webdriver.Chrome(service=webdriver_service,options=chrome_options)
-
         for news in dict_news:
 
-            # Проверка кол-ва вводимых слов
+                # Проверка кол-ва вводимых слов
             if len(value.split()) > 1:
-                browser.get(news['site'].format('%20'.join(value.split())))
+                driver = requests.get(news['site'].format(value))
             else:
-                browser.get(news['site'].format(value))
+                driver = requests.get(news['site'].format(value))
 
-            # Получение html и получения тэгов
-            soup = bs(browser.page_source, 'lxml')
-            tags = news['text'].split('class_=')
-            datatags = news['date'].split('class_=')
-            res = soup.find_all(tags[0], class_=tags[1], limit=3)
+                if 'washingtonpost' not in news['site']:
+                    # Получение html и получения тэгов
+                    soup = bs(driver.content, 'lxml')
+                    tags = news['text'].split('class_=')
+                    datatags = news['date'].split('class_=')
+                    res = soup.find_all(tags[0], class_=tags[1], limit=5)
 
-            for i in res:
+                    for i in res:
 
-                date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator= ' ')
-                date = self.get_public_date(date,news['site'])
+                        date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator= ' ')
+                        date = self.get_public_date(date,news['site'])
 
-                if 'http' in i.a.get('href'):
-                    list_news.append([i.a.get_text(strip=True, separator= ' ').replace('\xad',""),i.a.get('href'), value,date])
+                        if 'http' in i.a.get('href'):
+                            list_news.append([i.a.get_text(strip=True, separator= ' ').replace('\xad',""),i.a.get('href'), value,date])
+                        else:
+                            link = re.match('^h.*\.(com|uk|org|ca)', news["site"] ).group()
+                            list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value,date])
                 else:
-                    link = re.match('^h.*\.(com|uk|org)', news["site"] ).group()
-                    list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value,date])
+
+                    options = Options()
+                    options.add_argument("--no-sandbox")
+                    options.add_argument("--headless")
+                    options.add_argument('--no-proxe-server')
+                    options.add_argument('--disable-gpu')
+                    image_preferences = {"profile.managed_default_content_settings.images": 2}
+                    options.add_experimental_option("prefs", image_preferences)
+                    driver = webdriver.Chrome(options=options)
+                    driver.get(news['site'].format(value))
+                    soup = bs(driver.page_source, 'lxml')
+                    res = soup.find_all("article", class_="single-result mt-sm pb-sm", limit=5)
+
+                    for i in res:
+                        date = i.find('div', class_='flex items-center').get_text(strip=True, separator=' ')
+                        date = self.get_public_date(date, news['site'])
+                        list_news.append([i.a.get_text(strip=True, separator=' '), i.a.get('href'), value, date])
 
         return list_news
 
@@ -110,50 +122,47 @@ class ParseNews:
             if 'ago' in value:
                 return self.get_time_now()
             data = re.search(r'\w{1,}\. \d{1,2}', value).group()
-            data = datetime.strptime(data, '%b. %d').strftime('%d-%m') + '-2023'
+            data = datetime.strptime(data, '%b. %d').strftime('%d-%m-') + str(datetime.now().year)
             return data
 
-        elif "www.washingtonpost.com" in site:
-            data = re.search(r'\w{1,} \d{1,2}\, \d{4}', value).group()
-            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
-            return data
-
-        elif "www.ndtv.com" in site:
-            data = re.search(r'\w+  \d{1,2}\, \d{4}', value).group()
-            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
-            return data
-
-        elif "globalnews" in site:
-            if 'hour' in value:
-                data = self.get_time_now()
-                return data
-            data = re.search(r'\w+ \d{1,2}', value).group()
-            data = datetime.strptime(data, '%b %d').strftime('%d-%m') + "-2023"
-            return data
 
         elif "www.thetimes.co.uk" in site:
             data = re.search(r'\w+ \d{1,2} \d{4}', value).group()
             data = datetime.strptime(data, '%B %d %Y').strftime('%d-%m-%Y')
             return data
 
+        elif "www.ndtv.com" in site:
+            data = re.search(r'\w+\s{1,2}\d{1,2}\, \d{4}', value).group()
+            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
+            return data
+
+        elif "globalnews" in site:
+            data = re.search(r'(\w+ \d{1,2}\,\s\d{4}|\w+ \d{1,2})', value).group()
+            if 'hour' in value:
+                data = datetime.strptime(data, '%b %d, %Y').strftime('%d-%m-%Y')
+                return data
+            else:
+                data = datetime.strptime(data,'%b %d').strftime('%d-%m-') + str(datetime.now().year)
+                return data
+
+        elif "www.washingtonpost.com" in site:
+            data = re.search(r'\w{1,} \d{1,2}\, \d{4}', value).group()
+            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
+            return data
+
+
     def get_check_news(self,value):
 
+        eigth_hours = timedelta(hours=8)
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
         with connection:
             with connection.cursor() as cursor:
 
-                sql = "SELECT * FROM `News` WHERE `Tags` = '{}'".format(value)
+                sql = "SELECT DateInsert FROM `News` WHERE `Tags` = '{}'".format(value)
                 cursor.execute(sql)
                 result = cursor.fetchall()
 
-                if result:
-                    if  result[0]['Date'] < self.get_time_now():
-                        return 'new'
-                    else:
-                        return 'new'
-                else:
-                    return False
 
 class Users:
     def get_add_user(self, value):
