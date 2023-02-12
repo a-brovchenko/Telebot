@@ -44,10 +44,10 @@ class ParseNews:
                         date = self.get_public_date(date,news['site'])
 
                         if 'http' in i.a.get('href'):
-                            list_news.append([i.a.get_text(strip=True, separator= ' ').replace('\xad',""),i.a.get('href'), value,date])
+                            list_news.append([i.a.get_text(strip=True, separator= ' ').replace('\xad',""),i.a.get('href'), value, int(date)])
                         else:
                             link = re.match('^h.*\.(com|uk|org|ca)', news["site"] ).group()
-                            list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value,date])
+                            list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value, int(date)])
                 else:
 
                     options = Options()
@@ -65,7 +65,7 @@ class ParseNews:
                     for i in res:
                         date = i.find('div', class_='flex items-center').get_text(strip=True, separator=' ')
                         date = self.get_public_date(date, news['site'])
-                        list_news.append([i.a.get_text(strip=True, separator=' '), i.a.get('href'), value, date])
+                        list_news.append([i.a.get_text(strip=True, separator=' '), i.a.get('href'), value, int(date)])
 
         return list_news
 
@@ -81,8 +81,8 @@ class ParseNews:
             with connection.cursor() as cursor:
                 #Isert new values
                 for i in list:
-                    insert = "INSERT INTO `News` (`News`,`Link`,`Tags`,`Datepublisher`,`DateInsert`) VALUES (%s, %s, %s, %s, %s)"
-                    cursor.execute(insert, (i[0],i[1],i[2],i[3],self.get_time_now()))
+                    insert = "INSERT INTO `News` (`News`,`Link`,`Tags`,`Datepublisher`) VALUES (%s, %s, %s, %s)"
+                    cursor.execute(insert, (i[0],i[1],i[2],i[3]))
                 connection.commit()
 
     def get_show_news(self,value):
@@ -98,57 +98,49 @@ class ParseNews:
 
                 return result
 
-    def get_time_now(self):
-        data = datetime.now().strftime("%d-%m-%Y %H:%M:%S.%f")
-        return data
-
     def get_public_date(self,value,site):
         """Переводит даты публикаций с сайтов в формат строки """
 
         if len(value) == 0:
-            return self.get_time_now()
+            return datetime.timestamp(datetime.now())
 
         elif "www.aljazeera.com" in site:
             data = re.search(r'\d ... \d{4}',value).group()
-            data = datetime.strptime(data, '%d %b %Y').strftime('%d-%m-%Y')
-            return data
+            data = datetime.strptime(data, '%d %b %Y')
+            return datetime.timestamp(data)
 
-        elif "www.bbc.co.uk" in site:
-            data = re.search(r'\d\d .+ \d{4}', value).group()
-            data = datetime.strptime(data, '%d %B %Y').strftime('%d-%m-%Y')
-            return data
 
         elif "www.nytimes.com" in site:
             if 'ago' in value:
-                return self.get_time_now()
+                return datetime.timestamp(datetime.now())
             data = re.search(r'\w{1,}\. \d{1,2}', value).group()
-            data = datetime.strptime(data, '%b. %d').strftime('%d-%m-') + str(datetime.now().year)
-            return data
+            data = datetime.strptime(data, '%b. %d')
+            return datetime.timestamp(data)
 
 
         elif "www.thetimes.co.uk" in site:
             data = re.search(r'\w+ \d{1,2} \d{4}', value).group()
-            data = datetime.strptime(data, '%B %d %Y').strftime('%d-%m-%Y')
-            return data
+            data = datetime.strptime(data, '%B %d %Y')
+            return datetime.timestamp(data)
 
         elif "www.ndtv.com" in site:
             data = re.search(r'\w+\s{1,2}\d{1,2}\, \d{4}', value).group()
-            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
-            return data
+            data = datetime.strptime(data, '%B %d, %Y')
+            return datetime.timestamp(data)
 
         elif "globalnews" in site:
-            data = re.search(r'(\w+ \d{1,2}\,\s\d{4}|\w+ \d{1,2})', value).group()
-            if 'hour' in value:
-                data = datetime.strptime(data, '%b %d, %Y').strftime('%d-%m-%Y')
-                return data
+            if 'hours' in value:
+                return datetime.timestamp(datetime.now())
             else:
-                data = datetime.strptime(data,'%b %d').strftime('%d-%m-') + str(datetime.now().year)
-                return data
+                data = re.search(r'\w{3} \d{1,2}', value).group()
+                data = f'{data} {datetime.now().year}'
+                data = datetime.strptime(data,'%b %d %Y')
+                return datetime.timestamp(data)
 
         elif "www.washingtonpost.com" in site:
             data = re.search(r'\w{1,} \d{1,2}\, \d{4}', value).group()
-            data = datetime.strptime(data, '%B %d, %Y').strftime('%d-%m-%Y')
-            return data
+            data = datetime.strptime(data, '%B %d, %Y')
+            return datetime.timestamp(data)
 
 
     def get_check_news(self,value):

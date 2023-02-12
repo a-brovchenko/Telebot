@@ -2,40 +2,38 @@
 
 
   {
-        "site": "https://www.thetimes.co.uk/search?source=search-page&q={}",
-        "text": "divclass_=Item-content",
-        "date": "spanclass_=Dateline Item-dateline"
-  },
-
-  {
         "site": "https://globalnews.ca/?s={}",
         "text": "liclass_=c-posts__item c-posts__loadmore",
         "date": "divclass_=c-posts__about c-posts__about--multiple"
-  },
-
-  {     "site": "https://www.washingtonpost.com/search/?query={}&facets=%7B%22time%22%3A%22all%22%2C%22sort%22%3A%22relevancy%22%2C%22section%22%3A%5B%5D%2C%22author%22%3A%5B%5D%7D",
-        "text": "articleclass_=single-result mt-sm pb-sm",
-        "date": "spanclass_=flex nowrap font-light gray-dark italic font-xxxxs"
-
-  },
+     },
 
   {
         "site": "https://www.ndtv.com/search?searchtext={}",
         "text": "divclass_=src_lst-rhs",
         "date": "spanclass_=src_itm-stx"
-  },
+     },
 
   {
         "site": "https://www.nytimes.com/search?dropmab=false&query={}&sort=best",
         "text": "liclass_=css-1l4w6pd",
         "date": "spanclass_=css-17ubb9w"
 
-    },
+     },
 
   {
         "site": "https://www.aljazeera.com/search/{}",
         "text": "articleclass_=gc u-clickable-card gc--type-customsearch#result gc--list",
         "date": "divclass_=date-simple css-1yjq2zp"
-    }
+     },
+  {
+        "site": "https://www.thetimes.co.uk/search?source=search-page&q={}",
+        "text": "divclass_=Item-content",
+        "date": "spanclass_=Dateline Item-dateline"
+     },
+  {     "site": "https://www.washingtonpost.com/search/?query={}&facets=%7B%22time%22%3A%22all%22%2C%22sort%22%3A%22relevancy%22%2C%22section%22%3A%5B%5D%2C%22author%22%3A%5B%5D%7D",
+        "text": "articleclass_=single-result mt-sm pb-sm",
+        "date": "spanclass_=flex nowrap font-light gray-dark italic font-xxxxs"
+     }
+
 
 ]
