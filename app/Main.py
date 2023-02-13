@@ -4,9 +4,7 @@ from bs4 import BeautifulSoup as bs
 import pymysql.cursors
 import json
 from datetime import datetime
-from datetime import timedelta
 import schedule
-import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
@@ -87,16 +85,14 @@ class ParseNews:
 
     def get_show_news(self,value):
         '''Show news  DataBase'''
-        connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
-                                     charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
-
-        with connection:
-            with connection.cursor() as cursor:
-                sql = "SELECT * FROM `News` WHERE `Tags` = '{}'".format(value)
-                cursor.execute(sql)
-                result = cursor.fetchall()
-
-                return result
+        news = self.get_check_news(value)
+        result = []
+        if news:
+            for i in news:
+                result.append(i['Link'])
+            return result
+        else:
+            self.get_add_news(value)
 
     def get_public_date(self,value,site):
         """Переводит даты публикаций с сайтов в формат строки """
@@ -145,15 +141,18 @@ class ParseNews:
 
     def get_check_news(self,value):
 
-        eigth_hours = timedelta(hours=8)
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
         with connection:
             with connection.cursor() as cursor:
 
-                sql = "SELECT DateInsert FROM `News` WHERE `Tags` = '{}'".format(value)
+                sql = "SELECT * FROM `News` " \
+                      "WHERE `DateInsert` < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 8 HOUR_MINUTE) AND `Tags` = '{}'".format(value)
                 cursor.execute(sql)
                 result = cursor.fetchall()
+                if result:
+                    return result
+                return False
 
 
 class Users:
@@ -250,7 +249,5 @@ class Tags:
                 result = cursor.fetchall()
                 tags = [x['tag'] for x in result]
                 return tags
-
-
 
 
