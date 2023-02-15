@@ -1,8 +1,15 @@
 from telebot import types
 import telebot
-from Main import ParseNews , Users , Tags
+from Main import ParseNews , Users , Tags, Send_Message
 from telegram_bot_pagination import InlineKeyboardPaginator
 
+
+bot = telebot.TeleBot('6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0')
+
+user = Users()
+parse_news = ParseNews()
+tag = Tags()
+send_message = Send_Message()
 
 bot = telebot.TeleBot('6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0')
 
@@ -71,10 +78,29 @@ def characters_page_callback(call):
     bot.delete_message(call.message.chat.id,call.message.message_id)
     send_news_page(call.message, page)
 def send_news_page(message, page=1):
-    print(message.chat.id)
-    character_pages = [f"<b><a href='{x[1]}'>Source</a></b>" for x in parse_news.get_show_news('Germany')]
+    character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news('World')]
     paginator = InlineKeyboardPaginator(len(character_pages),current_page=page,data_pattern='character#{page}')
     bot.send_message(message.chat.id, character_pages[page-1],reply_markup=paginator.markup,parse_mode='HTML')
+
+@bot.message_handler(commands=['show'])
+def send_news(message):
+    send_news_user(message)
+def send_news_user(message, page=1):
+    news = send_message.send_message()
+    for i in news:
+        for q in i['tag']:
+            bot.send_message(i['id'], f'News by tag {q}' ,parse_mode='HTML')
+            character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news(q)]
+            paginator = InlineKeyboardPaginator(len(character_pages), current_page=page, data_pattern='world#{page}')
+            bot.send_message(i['id'], character_pages[page - 1], reply_markup=paginator.markup, parse_mode='HTML')
+
+@bot.callback_query_handler(func=lambda call: call.data.split('#')[0]=='world')
+def characters_page_ca1llback(call):
+    page = int(call.data.split('#')[1])
+    bot.delete_message(call.message.chat.id,call.message.message_id)
+    send_news_user(call.message, page)
+
+
 
 @bot.message_handler(content_types=['text'])
 def get_user_text(message):
@@ -106,18 +132,6 @@ def get_user_text(message):
             bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
 
 
-    # elif message.text == "🚫 Unsubscribe":
-    #     if user.get_check_user(message.from_user.id):
-    #         tag.get_all_delete_tags(message.from_user.id)
-    #         user.get_delete_user(message.from_user.id)
-    #
-    #         bot.send_message(message.chat.id, '🚫 You have unsubscribed from the newsletter ', parse_mode='html')
-    #
-    #     else:
-    #         bot.send_message(message.chat.id, 'You are not subscribed', parse_mode='html')
-
-
-
-    # bot.send_message(346488140,'text', parse_mode='HTML')
-
 bot.polling(none_stop=True)
+
+

@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup as bs
 import pymysql.cursors
 import json
 from datetime import datetime
-import schedule
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
@@ -34,18 +33,23 @@ class ParseNews:
                     soup = bs(driver.content, 'lxml')
                     tags = news['text'].split('class_=')
                     datatags = news['date'].split('class_=')
-                    res = soup.find_all(tags[0], class_=tags[1], limit=5)
+                    res = soup.find_all(tags[0], class_=tags[1], limit=3)
+                    try:
+                        for i in res:
 
-                    for i in res:
+                            date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator= ' ')
+                            date = self.get_public_date(date,news['site'])
 
-                        date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator= ' ')
-                        date = self.get_public_date(date,news['site'])
+                            if 'http' in i.a.get('href'):
+                                list_news.append([i.a.get_text(strip=True, separator= ' ').replace('\xa0',""),i.a.get('href'), value, int(date)])
+                            else:
+                                link = re.match('^h.*\.(com|uk|org|ca)', news["site"] ).group()
+                                list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value, int(date)])
 
-                        if 'http' in i.a.get('href'):
-                            list_news.append([i.a.get_text(strip=True, separator= ' ').replace('\xad',""),i.a.get('href'), value, int(date)])
-                        else:
-                            link = re.match('^h.*\.(com|uk|org|ca)', news["site"] ).group()
-                            list_news.append([i.a.get_text(strip=True, separator= ' '), link + i.a.get('href'), value, int(date)])
+                    except AttributeError:
+                        continue
+                    except ValueError:
+                        continue
                 else:
 
                     options = Options()
@@ -58,7 +62,7 @@ class ParseNews:
                     driver = webdriver.Chrome(options=options)
                     driver.get(news['site'].format(value))
                     soup = bs(driver.page_source, 'lxml')
-                    res = soup.find_all("article", class_="single-result mt-sm pb-sm", limit=5)
+                    res = soup.find_all("article", class_="single-result mt-sm pb-sm", limit=3)
 
                     for i in res:
                         date = i.find('div', class_='flex items-center').get_text(strip=True, separator=' ')
@@ -93,6 +97,7 @@ class ParseNews:
             return result
         else:
             self.get_add_news(value)
+            return self.get_show_news(value)
 
     def get_public_date(self,value,site):
         """Переводит даты публикаций с сайтов в формат строки """
@@ -147,13 +152,12 @@ class ParseNews:
             with connection.cursor() as cursor:
 
                 sql = "SELECT * FROM `News` " \
-                      "WHERE `DateInsert` < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 8 HOUR_MINUTE) AND `Tags` = '{}'".format(value)
+                      "WHERE `DateInsert` > DATE_SUB(NOW(), INTERVAL 8 HOUR) AND `Tags` = '{}'".format(value)
                 cursor.execute(sql)
                 result = cursor.fetchall()
                 if result:
                     return result
                 return False
-
 
 class Users:
     def get_add_user(self, value):
@@ -192,6 +196,17 @@ class Users:
                     return True
                 else:
                     return False
+
+    def get_show_user(self):
+        connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
+                                     charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+
+        with connection:
+            with connection.cursor() as cursor:
+                sql = "SELECT * FROM `Users`"
+                cursor.execute(sql)
+                result = cursor.fetchall()
+                return result
 
 class Tags:
     def get_add_tags(self,id, tag):
@@ -250,4 +265,14 @@ class Tags:
                 tags = [x['tag'] for x in result]
                 return tags
 
+class Send_Message:
+    def send_message(self):
+        a = ParseNews()
+        user = Users()
+        tag = Tags()
+        res = {x['id']:tag.get_show_tags(x['id']) for x in user.get_show_user() }
+        news = []
+        for i in res:
+            news.append({'id': i , 'tag' : res[i]})
+        return news
 
