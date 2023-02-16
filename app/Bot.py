@@ -6,16 +6,6 @@ from telegram_bot_pagination import InlineKeyboardPaginator
 
 bot = telebot.TeleBot('6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0')
 
-user = Users()
-parse_news = ParseNews()
-tag = Tags()
-send_message = Send_Message()
-
-bot = telebot.TeleBot('6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0')
-
-user = Users()
-parse_news = ParseNews()
-tag = Tags()
 
 
 @bot.message_handler(commands=['start'])
@@ -31,6 +21,7 @@ def start(message):
 
 @bot.callback_query_handler(func=lambda call: call.data == '✅ Subscribe')
 def subscribe(call):
+    user = Users()
     user.get_add_user(call.from_user.id)
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton("✅ Add tag", callback_data='✅ Add tag')
@@ -54,6 +45,7 @@ def add_tags(call):
     tag_add = bot.send_message(call.message.chat.id , ' Please enter a tag', parse_mode= 'HTML')
     bot.register_next_step_handler(tag_add , add_tags_in_base)
 def add_tags_in_base(tag_add):
+    tag = Tags()
     if tag.get_check_tags(tag_add.from_user.id,tag_add.text):
         tag.get_add_tags(tag_add.from_user.id, tag_add.text)
         markup = types.InlineKeyboardMarkup()
@@ -78,7 +70,8 @@ def characters_page_callback(call):
     bot.delete_message(call.message.chat.id,call.message.message_id)
     send_news_page(call.message, page)
 def send_news_page(message, page=1):
-    character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news('World')]
+    parse_news = ParseNews()
+    character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news('world')]
     paginator = InlineKeyboardPaginator(len(character_pages),current_page=page,data_pattern='character#{page}')
     bot.send_message(message.chat.id, character_pages[page-1],reply_markup=paginator.markup,parse_mode='HTML')
 
@@ -86,6 +79,8 @@ def send_news_page(message, page=1):
 def send_news(message):
     send_news_user(message)
 def send_news_user(message, page=1):
+    parse_news = ParseNews()
+    send_message = Send_Message()
     news = send_message.send_message()
     for i in news:
         for q in i['tag']:
@@ -100,11 +95,26 @@ def characters_page_ca1llback(call):
     bot.delete_message(call.message.chat.id,call.message.message_id)
     send_news_user(call.message, page)
 
+@bot.callback_query_handler(func=lambda call: call.data == '❌ Delete tag')
+def dell_tags(call):
+    tag_dell = bot.send_message(call.message.chat.id , ' Please write the news you want to delete', parse_mode= 'HTML')
+    bot.register_next_step_handler(tag_dell, delete_tag)
+
+def delete_tag(tag_dell):
+    tag = Tags()
+    tag.get_delete_tags(tag_dell.from_user.id,tag_dell.text)
+
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton("❌ Delete another tag", callback_data='✅ Add tag')
+    btn2 = types.InlineKeyboardButton("⬅️Back", callback_data='menu')
+    markup.add(btn1, btn2)
+    bot.send_message(tag_dell.chat.id, f"Tagr removed", parse_mode="HTML", reply_markup=markup)
 
 
 @bot.message_handler(content_types=['text'])
 def get_user_text(message):
-
+    user = Users()
+    tag = Tags()
     if message.text == '✅ My subscriptions':
 
         if user.get_check_user(message.from_user.id):
@@ -130,6 +140,8 @@ def get_user_text(message):
             markup.add(btn1, btn2)
             text = 'You are not subscribed to the bot, to receive news, please subscribe'
             bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
+
+
 
 
 bot.polling(none_stop=True)

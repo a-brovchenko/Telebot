@@ -20,15 +20,17 @@ class ParseNews:
         filer = file.read()
         dict_news = json.loads(filer)
 
+
         for news in dict_news:
 
                 # Проверка кол-ва вводимых слов
             if len(value.split()) > 1:
-                driver = requests.get(news['site'].format(value))
+                driver = requests.get(news['site'].format('%20'.join(value.split())))
             else:
                 driver = requests.get(news['site'].format(value))
 
-                if 'washingtonpost' not in news['site']:
+                if 'req' in news['parsetype']:
+
                     # Получение html и получения тэгов
                     soup = bs(driver.content, 'lxml')
                     tags = news['text'].split('class_=')
@@ -50,7 +52,8 @@ class ParseNews:
                         continue
                     except ValueError:
                         continue
-                else:
+
+                elif 'selenium' in news['parsetype']:
 
                     options = Options()
                     options.add_argument("--no-sandbox")
@@ -251,6 +254,16 @@ class Tags:
                 result = cursor.execute(sql)
                 connection.commit()
 
+    def get_delete_tags(self,id, value ):
+        connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
+                                     charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+
+        with connection:
+            with connection.cursor() as cursor:
+                sql = "DELETE FROM `Tags` WHERE `id` = '{}' and `tag` = '{}'".format(id, value)
+                result = cursor.execute(sql)
+                connection.commit()
+
     def get_show_tags(self,id):
 
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
@@ -275,4 +288,5 @@ class Send_Message:
         for i in res:
             news.append({'id': i , 'tag' : res[i]})
         return news
+
 
