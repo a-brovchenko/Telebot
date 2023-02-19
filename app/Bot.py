@@ -2,11 +2,10 @@ from telebot import types
 import telebot
 from Main import ParseNews , Users , Tags, Send_Message
 from telegram_bot_pagination import InlineKeyboardPaginator
-
+import threading
+import time
 
 bot = telebot.TeleBot('6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0')
-
-
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -75,20 +74,20 @@ def send_news_page(message, page=1):
     paginator = InlineKeyboardPaginator(len(character_pages),current_page=page,data_pattern='character#{page}')
     bot.send_message(message.chat.id, character_pages[page-1],reply_markup=paginator.markup,parse_mode='HTML')
 
-@bot.message_handler(commands=['show'])
-def send_news(message):
-    send_news_user(message)
-def send_news_user(message, page=1):
-    parse_news = ParseNews()
-    send_message = Send_Message()
-    news = send_message.send_message()
-    for i in news:
-        for q in i['tag']:
-            bot.send_message(i['id'], f'News by tag {q}' ,parse_mode='HTML')
-            character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news(q)]
-            paginator = InlineKeyboardPaginator(len(character_pages), current_page=page, data_pattern='world#{page}')
-            bot.send_message(i['id'], character_pages[page - 1], reply_markup=paginator.markup, parse_mode='HTML')
-
+def send_news_user( page=1):
+    while True:
+        this_time = int(time.time())
+        if this_time % 5 == 0:
+            parse_news = ParseNews()
+            send_message = Send_Message()
+            news = send_message.send_message()
+            for i in news:
+                for q in i['tag']:
+                    bot.send_message(i['id'], f'News by tag {q}' ,parse_mode='HTML')
+                    character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news(q)]
+                    paginator = InlineKeyboardPaginator(len(character_pages), current_page=page, data_pattern='world#{page}')
+                    bot.send_message(i['id'], character_pages[page - 1], reply_markup=paginator.markup, parse_mode='HTML')
+            time.sleep(1)
 @bot.callback_query_handler(func=lambda call: call.data.split('#')[0]=='world')
 def characters_page_ca1llback(call):
     page = int(call.data.split('#')[1])
@@ -99,7 +98,6 @@ def characters_page_ca1llback(call):
 def dell_tags(call):
     tag_dell = bot.send_message(call.message.chat.id , ' Please write the news you want to delete', parse_mode= 'HTML')
     bot.register_next_step_handler(tag_dell, delete_tag)
-
 def delete_tag(tag_dell):
     tag = Tags()
     tag.get_delete_tags(tag_dell.from_user.id,tag_dell.text)
@@ -143,7 +141,11 @@ def get_user_text(message):
 
 
 
+if __name__ == '__main__':
+    thr1 = threading.Thread(target=send_news_user, name = 'Daemon')
+    thr1.setDaemon(True)
 
-bot.polling(none_stop=True)
+    thr1.start()
+    bot.polling(none_stop=True)
 
 

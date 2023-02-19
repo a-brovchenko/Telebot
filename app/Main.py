@@ -90,6 +90,25 @@ class ParseNews:
                     cursor.execute(insert, (i[0],i[1],i[2],i[3]))
                 connection.commit()
 
+    def get_delete_old_news(self, hour):
+
+        connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
+                                     charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+        with connection:
+            with connection.cursor() as cursor:
+
+                if hour == 8:
+                    sql = "DELETE FROM `News` " \
+                          "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 8 HOUR)"
+                    cursor.execute(sql)
+                    connection.commit()
+                else:
+                    sql = "DELETE FROM `News` " \
+                          "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL '{}' MINUTE) and `Tags` = 'World' ".format(hour)
+                    cursor.execute(sql)
+                    connection.commit()
+
+
     def get_show_news(self,value):
         '''Show news  DataBase'''
         news = self.get_check_news(value)
