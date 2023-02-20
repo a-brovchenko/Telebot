@@ -10,12 +10,14 @@ from selenium.webdriver.chrome.options import Options
 
 class ParseNews:
 
-    def get_search_news(self,value):
+    """Class for parsing and working with news"""
 
+    def get_search_news(self,value):
+        """Search by sites from the database file 'search.json'"""
         value = value.title()
         list_news = []
 
-        # взять данные из базы сайтов
+        # open file
         file = open('search.json', 'r')
         filer = file.read()
         dict_news = json.loads(filer)
@@ -23,7 +25,7 @@ class ParseNews:
 
         for news in dict_news:
 
-                # Проверка кол-ва вводимых слов
+            #Check word
             if len(value.split()) > 1:
                 driver = requests.get(news['site'].format('%20'.join(value.split())))
             else:
@@ -31,11 +33,12 @@ class ParseNews:
 
                 if 'req' in news['parsetype']:
 
-                    # Получение html и получения тэгов
+                    # get html and tags
                     soup = bs(driver.content, 'lxml')
                     tags = news['text'].split('class_=')
                     datatags = news['date'].split('class_=')
                     res = soup.find_all(tags[0], class_=tags[1], limit=3)
+
                     try:
                         for i in res:
 
@@ -50,6 +53,7 @@ class ParseNews:
 
                     except AttributeError:
                         continue
+
                     except ValueError:
                         continue
 
@@ -64,10 +68,12 @@ class ParseNews:
                     options.add_experimental_option("prefs", image_preferences)
                     driver = webdriver.Chrome(options=options)
                     driver.get(news['site'].format(value))
+
                     soup = bs(driver.page_source, 'lxml')
                     res = soup.find_all("article", class_="single-result mt-sm pb-sm", limit=3)
 
                     for i in res:
+
                         date = i.find('div', class_='flex items-center').get_text(strip=True, separator=' ')
                         date = self.get_public_date(date, news['site'])
                         list_news.append([i.a.get_text(strip=True, separator=' '), i.a.get('href'), value, int(date)])
@@ -76,9 +82,11 @@ class ParseNews:
 
     def get_add_news(self,value):
 
+        """add news to database"""
+
         list = self.get_search_news(value)
 
-        # Создание соединения с БД
+        # connect to Database
         connection= pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                  charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
@@ -91,6 +99,8 @@ class ParseNews:
                 connection.commit()
 
     def get_delete_old_news(self):
+
+        """Deleting news older than 8 hours"""
 
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
@@ -105,19 +115,26 @@ class ParseNews:
 
 
     def get_show_news(self,value):
+
         '''Show news  DataBase'''
+
         news = self.get_check_news(value)
         result = []
+
         if news:
+
             for i in news:
                 result.append(i['Link'])
+
             return result
+
         else:
             self.get_add_news(value)
             return self.get_show_news(value)
 
     def get_public_date(self,value,site):
-        """Переводит даты публикаций с сайтов в формат строки """
+
+        """Convert publication date to string"""
 
         if len(value) == 0:
             return datetime.timestamp(datetime.now())
@@ -163,8 +180,11 @@ class ParseNews:
 
     def get_check_news(self,value):
 
+        """Checking for news"""
+
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+
         with connection:
             with connection.cursor() as cursor:
 
@@ -177,7 +197,12 @@ class ParseNews:
                 return False
 
 class Users:
+
+    """Class for working with user"""
+
     def get_add_user(self, value):
+
+        """Adds users to the database"""
 
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
@@ -190,6 +215,8 @@ class Users:
 
     def get_delete_user(self, value):
 
+        """Delete users to the database"""
+
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
         with connection:
@@ -200,6 +227,8 @@ class Users:
 
     def get_check_user(self, value):
 
+        """Check user"""
+
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
@@ -209,12 +238,16 @@ class Users:
                 cursor.execute(sql)
                 result = cursor.fetchone()
                 connection.commit()
+
                 if result:
                     return True
                 else:
                     return False
 
     def get_show_user(self):
+
+        """Show users"""
+
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
@@ -226,7 +259,12 @@ class Users:
                 return result
 
 class Tags:
+
+    """Class for working with tag"""
+
     def get_add_tags(self,id, tag):
+
+        """Adds tag to Database"""
 
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                           charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
@@ -244,6 +282,8 @@ class Tags:
 
     def get_check_tags(self, id, tag):
 
+        """Check tags"""
+
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                           charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
@@ -259,6 +299,9 @@ class Tags:
                     return False
 
     def get_all_delete_tags(self,id):
+
+        """Delete all tags"""
+
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
@@ -269,6 +312,9 @@ class Tags:
                 connection.commit()
 
     def get_delete_tags(self,id, value ):
+
+        """Delete tag"""
+
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
@@ -279,6 +325,8 @@ class Tags:
                 connection.commit()
 
     def get_show_tags(self,id):
+
+        """Show tags"""
 
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
@@ -292,19 +340,30 @@ class Tags:
                 tags = [x['tag'] for x in result]
                 return tags
 
-class Send_Message:
-    def send_message(self):
+class Send_Data:
+
+    """Class for sending data to the bot"""
+
+    def send_data(self):
+
+        """sends ID and tags"""
+
         user = Users()
         tag = Tags()
         res = {x['id']:tag.get_show_tags(x['id']) for x in user.get_show_user() }
         news = [{'id': i , 'tag' : res[i]} for i in res]
         return news
+
     def send_tags(self):
+
+        """Sends unique tags"""
+
         tag = []
-        for i in a.send_message():
+
+        for i in self.send_data():
+
             for q in i['tag']:
                 tag.append(q)
+
         return set(tag)
 
-a = Send_Message()
-print(a.send_tags())
