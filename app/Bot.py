@@ -7,7 +7,7 @@ import time
 
 bot = telebot.TeleBot('6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0')
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start', 'help'])
 def start(message):
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard= True)
@@ -74,20 +74,6 @@ def send_news_page(message, page=1):
     paginator = InlineKeyboardPaginator(len(character_pages),current_page=page,data_pattern='character#{page}')
     bot.send_message(message.chat.id, character_pages[page-1],reply_markup=paginator.markup,parse_mode='HTML')
 
-def send_news_user( page=1):
-    while True:
-        this_time = int(time.time())
-        if this_time % 5 == 0:
-            parse_news = ParseNews()
-            send_message = Send_Message()
-            news = send_message.send_message()
-            for i in news:
-                for q in i['tag']:
-                    bot.send_message(i['id'], f'News by tag {q}' ,parse_mode='HTML')
-                    character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news(q)]
-                    paginator = InlineKeyboardPaginator(len(character_pages), current_page=page, data_pattern='world#{page}')
-                    bot.send_message(i['id'], character_pages[page - 1], reply_markup=paginator.markup, parse_mode='HTML')
-            time.sleep(1)
 @bot.callback_query_handler(func=lambda call: call.data.split('#')[0]=='world')
 def characters_page_ca1llback(call):
     page = int(call.data.split('#')[1])
@@ -139,13 +125,41 @@ def get_user_text(message):
             text = 'You are not subscribed to the bot, to receive news, please subscribe'
             bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
 
+def send_news_user( page=1):
+
+    while True:
+
+        parse_news = ParseNews()
+        send_message = Send_Message()
+        this_time = int(time.time())
+
+        if this_time % 15 == 0:
+
+            parse_news.get_add_news('world')
+            news = send_message.send_message()
+
+            for tag in send_message.send_tags():
+                parse_news.get_add_news(tag)
+            parse_news.get_delete_old_news()
+
+            for i in news:
+
+                for q in i['tag']:
+
+                    bot.send_message(i['id'], f'News by tag {q}' ,parse_mode='HTML')
+                    character_pages = [f"<b><a href='{x}'>Source</a></b>" for x in parse_news.get_show_news(q)]
+                    paginator = InlineKeyboardPaginator(len(character_pages), current_page=page, data_pattern='world#{page}')
+                    bot.send_message(i['id'], character_pages[page - 1], reply_markup=paginator.markup, parse_mode='HTML')
+                    time.sleep(1)
+
 
 
 if __name__ == '__main__':
-    thr1 = threading.Thread(target=send_news_user, name = 'Daemon')
-    thr1.setDaemon(True)
 
-    thr1.start()
+    thr = threading.Thread(target=send_news_user, name = 'Daemon')
+    thr.setDaemon(True)
+    thr.start()
+
     bot.polling(none_stop=True)
 
 

@@ -90,23 +90,18 @@ class ParseNews:
                     cursor.execute(insert, (i[0],i[1],i[2],i[3]))
                 connection.commit()
 
-    def get_delete_old_news(self, hour):
+    def get_delete_old_news(self):
 
         connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
                                      charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
         with connection:
             with connection.cursor() as cursor:
 
-                if hour == 8:
-                    sql = "DELETE FROM `News` " \
-                          "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 8 HOUR)"
-                    cursor.execute(sql)
-                    connection.commit()
-                else:
-                    sql = "DELETE FROM `News` " \
-                          "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL '{}' MINUTE) and `Tags` = 'World' ".format(hour)
-                    cursor.execute(sql)
-                    connection.commit()
+                sql = "DELETE FROM `News` " \
+                      "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 8 HOUR)"
+                cursor.execute(sql)
+                connection.commit()
+
 
 
     def get_show_news(self,value):
@@ -299,13 +294,17 @@ class Tags:
 
 class Send_Message:
     def send_message(self):
-        a = ParseNews()
         user = Users()
         tag = Tags()
         res = {x['id']:tag.get_show_tags(x['id']) for x in user.get_show_user() }
-        news = []
-        for i in res:
-            news.append({'id': i , 'tag' : res[i]})
+        news = [{'id': i , 'tag' : res[i]} for i in res]
         return news
+    def send_tags(self):
+        tag = []
+        for i in a.send_message():
+            for q in i['tag']:
+                tag.append(q)
+        return set(tag)
 
-
+a = Send_Message()
+print(a.send_tags())
