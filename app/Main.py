@@ -124,7 +124,8 @@ class ParseNews:
         if news:
 
             for i in news:
-                result.append(i['Link'])
+
+                result.append((i['News'],i['Link']))
 
             return result
 
