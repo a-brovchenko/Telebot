@@ -91,9 +91,9 @@ def main(call):
     elif call.data.split('#')[0] in data.get_tags_in_base():
 
         page = int(call.data.split('#')[1])
-        bot.delete_message(call.message.chat.id, call.message.message_id)
+        # bot.delete_message(call.message.chat.id, call.message.message_id)
 
-        send_news_user(call.data.split('#')[0],page, call.message.chat.id)
+        send_news_user(call.data.split('#')[0],page, call.message.chat.id, call.message.message_id)
 
 @bot.message_handler(content_types=['text'])
 def get_user_text(message):
@@ -145,15 +145,19 @@ def get_user_text(message):
 
             bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
 
+
     elif message.text == "📰 Top news":
 
         send_news_user(tags_news= "World", id = message.chat.id)
+
 
     elif message.text == "📨 News without subscription":
 
         news = bot.send_message(message.chat.id, 'Please enter the title of the news,\n'
                                                  'The request may take some time.', parse_mode='HTML')
+
         bot.register_next_step_handler(news, show_news_without_subscription)
+
 
 
 def show_news_without_subscription(news):
@@ -161,70 +165,94 @@ def show_news_without_subscription(news):
     news.text = news.text.title()
     send_news_user(news.text, id = news.chat.id)
 
-def send_news_user(tags_news=None, page=1, id=None):
-
+def send_news_user(tags_news=None, page=None, id=None, message_id = None):
 
     send_data = Send_Data()
     parse_news = ParseNews()
     tags = Tags()
     users = Users()
-    user_sub = send_data.send_data()
 
-    link_news = parse_news.get_dict_news()
-    print(tags_news in link_news)
-    print(link_news.keys())
-    print(tags_news)
+    data_in_db = send_data.send_data()
 
     if not tags_news:
 
-        for i in user_sub:
+        for i in data_in_db['Users_tag']:
 
             for tag in i['tag']:
 
-                pages = [f"<b>News by tag {tag}\n\n" \
-                         f"News: {x[0]}</b>\n\n<b>" \
-                         f"<a href='{x[1]}'>Source</a></b>\n\n" for x in link_news[tag]]
+                news = parse_news.get_show_news(tag)
 
-                paginator = InlineKeyboardPaginator(len(pages),
-                                                    current_page=page,
-                                                    data_pattern=f"{tag}#{{page}}")
-                try:
-                    bot.send_message(i['id'], pages[page - 1], reply_markup=paginator.markup, parse_mode='HTML')
+                if not news:
+
+                    bot.send_message(i['id'], f"No new news for your tag - <b>{tag}</b>", parse_mode='HTML')
+
+                else:
+
+                    pages = [f"<b>News by tag {tag}\n\n" \
+                             f"{x[0]}</b>\n\n<b>" \
+                             f"<a href='{x[1]}'>Source</a></b>\n\n" for x in news]
+
+                    paginator = InlineKeyboardPaginator(len(pages),
+                                                        current_page=page,
+                                                        data_pattern=f"{tag}#{{page}}")
+                    try:
+
+                        bot.send_message(i['id'], pages[0], reply_markup=paginator.markup, parse_mode='HTML')
 
 
-                except telebot.apihelper.ApiTelegramException as err:
+                    except telebot.apihelper.ApiTelegramException as err:
 
-                    if err.description == "Forbidden: bot was blocked by the user":
-                        users.get_delete_user(i['id'])
-                        tags.get_all_delete_tags(i['id'])
+                        if err.description == "Forbidden: bot was blocked by the user":
+                            users.get_delete_user(i['id'])
+                            tags.get_all_delete_tags(i['id'])
 
     else:
 
-        if tags_news not in link_news:
+        if tags_news not in data_in_db['Tags_db']:
 
             parse_news.get_add_news(tags_news)
-            link_news = parse_news.get_dict_news()
+            data_in_db = send_data.send_data()
 
-        pages = [f"<b>News by tag {tags_news}\n\n" \
-                 f"{x[0]}</b>\n\n<b>" \
-                 f"<a href='{x[1]}'>Source</a></b>\n\n" for x in link_news[tags_news]]
+        news = parse_news.get_show_news(tags_news)
 
-        paginator = InlineKeyboardPaginator(len(link_news[tags_news]), current_page=page,
-                                            data_pattern=f"{tags_news}#{{page}}")
-        try:
+        if not news:
 
-            bot.send_message(id, pages[page - 1], reply_markup=paginator.markup, parse_mode='HTML')
+            bot.send_message(id, f"No new news for your tag - <b>{tags_news}</b>", parse_mode='HTML')
 
-        except telebot.apihelper.ApiTelegramException as err:
+        else:
 
-            if err.description == "Forbidden: bot was blocked by the user":
+            pages = [f"<b>News by tag {tags_news}\n\n" \
+                     f"{x[0]}</b>\n\n<b>" \
+                     f"<a href='{x[1]}'>Source</a></b>\n\n" for x in parse_news.get_show_news(tags_news)]
 
-                users.get_delete_user(id)
-                tags.get_all_delete_tags(id)
+            paginator = InlineKeyboardPaginator(len(pages),
+                                                current_page=page,
+                                                data_pattern=f"{tags_news}#{{page}}")
+
+            try:
+
+                if not page:
+
+                    bot.send_message(id, pages[0], reply_markup=paginator.markup, parse_mode='HTML')
+
+                else:
+
+                    bot.edit_message_text(chat_id=id,
+                                          message_id=message_id,
+                                          text = pages[page - 1],
+                                          reply_markup=paginator.markup,
+                                          parse_mode='HTML' )
+
+            except telebot.apihelper.ApiTelegramException as err:
+
+                if err.description == "Forbidden: bot was blocked by the user":
+
+                    users.get_delete_user(id)
+                    tags.get_all_delete_tags(id)
+
 
 def add_tags_in_base(tag_add):
 
-    tag_add.text = tag_add.text.capitalaze()
     tag = Tags()
 
     if tag.get_check_tags(tag_add.from_user.id,tag_add.text):
@@ -267,69 +295,41 @@ def delete_tag(tag_dell):
 
     bot.send_message(tag_dell.chat.id, f"Tagr removed", parse_mode="HTML", reply_markup=markup)
 
+def get_parse_news_from_tag():
 
-def dict_news():
-
-    send_data = Send_Data()
-    parse_news = ParseNews()
-    news = send_data.send_data()
-
-    dict_news = {}
-
-    for i in news:
-
-        for tag in i['tag']:
-
-            pages = [f"<b>News by tag {tag}\n\nNews: {x[0]}</b>\n\n<b>" \
-                     f"<a href='{x[1]}'>Source</a></b>\n\n" for x in parse_news.get_show_news(tag)]
-
-            dict_news[tag] = pages
-
-    return dict_news
-
-def parse_news_from_tag():
-
-    send_data = Send_Data()
-    news = send_data.send_data()
+    unique_tags = Tags()
     parse_news = ParseNews()
 
-    for i in news:
+    for tags in unique_tags.get_show_tags():
 
-        for tags in i['tag']:
-
-            parse_news.get_add_news(tags)
+        parse_news.get_add_news(tags)
 
     parse_news.get_add_news('world')
 
-def dellete_old_news():
+def delete_old_news():
 
     parse_news = ParseNews()
     parse_news.get_delete_old_news()
 
-def Thread_schedule():
 
-    # schedule.every(20).minutes.do(dellete_old_news)
-    # schedule.every(20).minutes.do(parse_news_from_tag)
-    # schedule.every(20).minutes.do(send_news_user)
+def thread():
 
-    schedule.every().day.at("13:57").do(dellete_old_news)
-    schedule.every().day.at("13:57").do(parse_news_from_tag)
-    schedule.every().day.at("14:01").do(send_news_user)
+    schedule.every(20).minutes.do(get_parse_news_from_tag)
+    schedule.every(20).minutes.do(delete_old_news)
+
+    schedule.every().day.at("15:45").do(send_news_user)
+    schedule.every().day.at("18:30").do(send_news_user)
+    schedule.every().day.at("19:00").do(send_news_user)
 
     while True:
         schedule.run_pending()
         time.sleep(1)
 
 
-
 if __name__ == '__main__':
 
-    thr = threading.Thread(target=Thread_schedule, name='Daemon', daemon=True).start()
+    thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
     thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
-
-
-
-
 
 
 

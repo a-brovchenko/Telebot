@@ -12,8 +12,9 @@ class ParseNews:
 
     """Class for parsing and working with news"""
 
-    def get_search_news(self,value):
+    def get_search_news(self, value):
         """Search by sites from the database file 'search.json'"""
+
         value = value.title()
         list_news = []
 
@@ -22,10 +23,9 @@ class ParseNews:
         filer = file.read()
         dict_news = json.loads(filer)
 
-
         for news in dict_news:
 
-            #Check word
+            # Check word
             if len(value.split()) > 1:
 
                 driver = requests.get(news["site"].format(f"{news['search']}".join(value.split())))
@@ -48,19 +48,22 @@ class ParseNews:
                 try:
                     for i in res:
 
-                        date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator= ' ')
-                        date = self.get_public_date(date,news['site'])
+                        date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator=' ')
+                        date = self.get_public_date(date, news['site'])
 
-                        if 'http' in i.a.get('href'):
+                        if int(date) >= int(self.get_today_data()):
 
-                            list_news.append([i.a.get_text(strip=True, separator= ' ').replace("\xa0",""),
-                                              i.a.get("href"), value, int(date)])
+                            if 'http' in i.a.get('href'):
 
-                        else:
+                                list_news.append([i.a.get_text(strip=True, separator=' ').replace("\xa0", ""),
+                                                  i.a.get("href"), value, int(date)])
 
-                            link = re.match("^h.*\.(com|uk|org|ca)", news["site"] ).group()
-                            list_news.append([i.a.get_text(strip=True, separator= ' '),
-                                              link + i.a.get("href"), value, int(date)])
+                            else:
+
+                                link = re.match("^h.*\.(com|uk|org|ca)", news["site"]).group()
+                                list_news.append([i.a.get_text(strip=True, separator=' '),
+                                                  link + i.a.get("href"), value, int(date)])
+
 
                 except AttributeError:
                     continue
@@ -77,6 +80,7 @@ class ParseNews:
                 options.add_argument("--disable-gpu")
                 image_preferences = {"profile.managed_default_content_settings.images": 2}
                 options.add_experimental_option("prefs", image_preferences)
+
                 driver = webdriver.Chrome(options=options)
                 driver.get(news["site"].format(value))
 
@@ -84,34 +88,59 @@ class ParseNews:
 
                 res = soup.find_all("article", class_="single-result mt-sm pb-sm", limit=3)
 
-                for i in res:
+                try:
 
-                    date = i.find("div", class_="flex items-center").get_text(strip=True, separator=' ')
-                    date = self.get_public_date(date, news["site"])
+                    for i in res:
 
-                    list_news.append([i.a.get_text(strip=True, separator=' '), i.a.get("href"), value, int(date)])
+                        date = i.find("div", class_="flex items-center").get_text(strip=True, separator=' ')
+                        date = self.get_public_date(date, news["site"])
+
+                        if int(date) >= int(self.get_today_data()):
+
+                            list_news.append([i.a.get_text(strip=True, separator=' '), i.a.get("href"), value, int(date)])
+
+                except AttributeError:
+                    continue
+
+                except ValueError:
+                    continue
 
         return list_news
 
-    def get_add_news(self,value):
+    def get_today_data(self):
+
+        today = str(datetime.today().date())
+
+        data = datetime.strptime(today, '%Y-%m-%d')
+
+        return datetime.timestamp(data)
+
+    def get_add_news(self, value):
 
         """add news to database"""
 
         list = self.get_search_news(value)
+        check_list = self.get_check_news(value)
 
         # connect to Database
-        connection= pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                 charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
+                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
 
         with connection:
             with connection.cursor() as cursor:
-                #Isert new values
+                # Isert new values
                 for i in list:
 
-                    insert = "INSERT INTO `News` (`News`,`Link`,`Tags`,`Datepublisher`) VALUES (%s, %s, %s, %s)"
-                    cursor.execute(insert, (i[0],i[1],i[2],i[3]))
+                    if i[1] in check_list:
 
-                connection.commit()
+                        continue
+
+                    else:
+
+                        insert = "INSERT INTO `News` (`News`,`Link`,`Tags`,`Datepublisher`) VALUES (%s, %s, %s, %s)"
+                        cursor.execute(insert, (i[0], i[1], i[2], i[3]))
+
+            connection.commit()
 
     def get_delete_old_news(self):
 
@@ -123,31 +152,30 @@ class ParseNews:
             with connection.cursor() as cursor:
 
                 sql = "DELETE FROM `News` " \
-                      "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 1 HOUR)"
+                      "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 6 HOUR)"
 
                 cursor.execute(sql)
                 connection.commit()
 
-    def get_show_news(self,value):
+    def get_show_news(self, value):
 
-        '''Show news  DataBase'''
+        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
+                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
 
-        news = self.get_check_news(value)
-        result = []
+        with connection:
+            with connection.cursor() as cursor:
+                sql = "SELECT `News`, " \
+                      "`Link` FROM `News` WHERE `Tags` = '{}' and " \
+                      "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR) LIMIT 15".format(value)
 
-        if news:
+                cursor.execute(sql)
+                result = cursor.fetchall()
+                connection.commit()
+                result = [(x['News'], x['Link']) for x in result]
 
-            for i in news:
+        return result
 
-                result.append((i['News'],i['Link']))
-
-            return result
-
-        else:
-            self.get_add_news(value)
-            return self.get_show_news(value)
-
-    def get_public_date(self,value,site):
+    def get_public_date(self, value, site):
 
         """Convert publication date to string"""
 
@@ -191,7 +219,7 @@ class ParseNews:
 
         elif "globalnews" in site:
 
-            if 'hours' in value:
+            if 'hours' in value or 'hour' in value:
 
                 return datetime.timestamp(datetime.now())
 
@@ -226,27 +254,22 @@ class ParseNews:
 
         return result
 
-    def get_check_news(self,value):
+    def get_check_news(self, value):
 
-        """Checking for news"""
-
-        connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
-                                     charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
+                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
 
         with connection:
             with connection.cursor() as cursor:
+                sql = "SELECT `Link` FROM `News` WHERE `Tags` = '{}' and " \
+                      "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR)".format(value)
 
-                sql = "SELECT * FROM `News` " \
-                      "WHERE `DateInsert` > DATE_SUB(NOW(), INTERVAL 1 HOUR) AND `Tags` = '{}'".format(value)
                 cursor.execute(sql)
-
                 result = cursor.fetchall()
+                connection.commit()
+                result = [x['Link'] for x in result]
 
-                if result:
-
-                    return result
-
-                return False
+        return result
 
     def get_dict_news(self):
 
@@ -260,13 +283,17 @@ class ParseNews:
                 cursor.execute(sql)
 
                 result = cursor.fetchall()
+
+                tag = [x['Tags'] for x in result]
                 dict_news = {}
-
-                for i in result:
-
-                    dict_news[i['Tags']] = self.get_show_news(i['Tags'])
+                dict_news['Tags'] = tag
 
                 return dict_news
+
+
+
+
+
 
 
 class Users:
@@ -283,10 +310,10 @@ class Users:
         with connection:
             with connection.cursor() as cursor:
 
-                    insert = "INSERT INTO `Users` (`id`) VALUES (%s)"
-                    cursor.execute(insert, (value))
+                insert = "INSERT INTO `Users` (`id`) VALUES (%s)"
+                cursor.execute(insert, (value))
 
-                    connection.commit()
+                connection.commit()
 
     def get_delete_user(self, value):
 
@@ -347,6 +374,8 @@ class Tags:
     def get_add_tags(self,id, tag):
 
         """Adds tag to Database"""
+
+        tag = tag.title()
 
         connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
                                      charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
@@ -418,6 +447,7 @@ class Tags:
 
         connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
                                      charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+
         if id:
 
             with connection:
@@ -432,6 +462,18 @@ class Tags:
 
                     return tags
 
+        else:
+
+            with connection:
+                with connection.cursor() as cursor:
+                    sql = "SELECT DISTINCT `tag` FROM `Tags` "
+                    cursor.execute(sql)
+
+                    result = cursor.fetchall()
+
+                    tags = [x['tag'] for x in result]
+
+                    return tags
 
 class Send_Data:
 
@@ -439,27 +481,19 @@ class Send_Data:
 
     def send_data(self):
 
-        """sends ID and tags"""
-
         user = Users()
         tag = Tags()
+        tags_db = ParseNews()
+
+        result = {}
 
         res = {x['id']:tag.get_show_tags(x['id']) for x in user.get_show_user() }
-        news = [{'id': i , 'tag' : res[i]} for i in res]
+        user_tag = [{'id': i , 'tag' : res[i]} for i in res]
 
-        return news
+        tags_db = tags_db.get_dict_news()['Tags']
 
-    def send_tags(self):
+        result['Tags_db'] = tags_db
+        result['Users_tag'] = user_tag
 
-        """Sends unique tags"""
-
-        tag = []
-
-        for i in self.send_data():
-
-            for q in i['tag']:
-
-                tag.append(q)
-
-        return set(tag)
+        return result
 

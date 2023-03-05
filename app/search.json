@@ -24,7 +24,7 @@
      },
 
   {
-        "site": "https://www.nytimes.com/search?dropmab=false&query={}&sort=best",
+        "site": "https://www.nytimes.com/search?dropmab=false&query={}&sort=newest",
         "text": "liclass_=css-1l4w6pd",
         "date": "spanclass_=css-17ubb9w",
         "parsetype" : "req",
@@ -32,15 +32,7 @@
 
      },
 
-  {
-        "site": "https://www.aljazeera.com/search/{}",
-        "text": "articleclass_=gc u-clickable-card gc--type-customsearch#result gc--list",
-        "date": "divclass_=date-simple css-1yjq2zp",
-        "parsetype" : "req",
-        "search" : "%20"
-     },
-
-  {     "site": "https://www.washingtonpost.com/search/?query={}&facets=%7B%22time%22%3A%22all%22%2C%22sort%22%3A%22relevancy%22%2C%22section%22%3A%5B%5D%2C%22author%22%3A%5B%5D%7D",
+  {     "site": "https://www.washingtonpost.com/search/?query={}&facets=%7B%22time%22%3A%22all%22%2C%22sort%22%3A%22date%22%2C%22section%22%3A%5B%5D%2C%22author%22%3A%5B%5D%7D",
         "text": "articleclass_=single-result mt-sm pb-sm",
         "date": "spanclass_=flex nowrap font-light gray-dark italic font-xxxxs",
         "parsetype" : "selenium",
