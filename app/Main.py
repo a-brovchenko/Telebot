@@ -10,6 +10,7 @@ from selenium.webdriver.chrome.options import Options
 from dbutils.pooled_db import PooledDB
 
 db_host = os.getenv("DB_HOST", default="127.0.0.1")
+
 mysql_config = {
     "host": f"{db_host}",
     "port": 3306,
