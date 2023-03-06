@@ -1,11 +1,63 @@
 import re
 import requests
 from bs4 import BeautifulSoup as bs
-import pymysql.cursors
+import pymysql
 import json
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from dbutils.pooled_db import PooledDB
+
+
+mysql_config = {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "db": "telebot",
+    "user": "telebot",
+    "password": "123321",
+    "charset": "utf8mb4",
+    "cursorclass": pymysql.cursors.DictCursor,
+    "autocommit": True,
+}
+
+pool_config = {
+    "creator": pymysql,
+    "maxconnections": 6,
+    "mincached": 2,
+    "maxcached": 5,
+    "maxshared": 3,
+    "blocking": True,
+    "maxusage": None,
+    "setsession": [],
+    "ping": 0,
+}
+
+pool = PooledDB(**mysql_config, **pool_config)
+
+
+class MySqlPool:
+    def __init__(self):
+        self._connection = pool.connection()
+        self._cursor = self._connection.cursor()
+
+    def fetch_one(self, sql, args):
+        self._cursor.execute(sql, args)
+        result = self._cursor.fetchone()
+        return result
+
+    def fetch_all(self, sql, args):
+        self._cursor.execute(sql, args)
+        result = self._cursor.fetchall()
+        return result
+
+    def execute(self, sql, args):
+        self._cursor.execute(sql, args)
+
+
+    def __del__(self):
+        self._connection.close()
+
+connector = MySqlPool()
 
 
 class ParseNews:
@@ -123,56 +175,36 @@ class ParseNews:
         list = self.get_search_news(value)
         check_list = self.get_check_news(value)
 
-        # connect to Database
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        # Isert new values
+        for i in list:
 
-        with connection:
-            with connection.cursor() as cursor:
-                # Isert new values
-                for i in list:
+            if i[1] in check_list:
 
-                    if i[1] in check_list:
+                continue
 
-                        continue
+            else:
 
-                    else:
-
-                        insert = "INSERT INTO `News` (`News`,`Link`,`Tags`,`Datepublisher`) VALUES (%s, %s, %s, %s)"
-                        cursor.execute(insert, (i[0], i[1], i[2], i[3]))
-
-            connection.commit()
+                insert_query = "INSERT INTO `News` (`News`,`Link`,`Tags`,`Datepublisher`) VALUES (%s, %s, %s, %s)"
+                connector.execute(insert_query, (i[0], i[1], i[2], i[3]))
 
     def get_delete_old_news(self):
 
         """Deleting news older than 8 hours"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
-        with connection:
-            with connection.cursor() as cursor:
+        delete_query = "DELETE FROM `News` " \
+              "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 6 HOUR)"
 
-                sql = "DELETE FROM `News` " \
-                      "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 6 HOUR)"
-
-                cursor.execute(sql)
-                connection.commit()
+        connector.execute(delete_query, None)
 
     def get_show_news(self, value):
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        select_query = "SELECT `News`, " \
+              "`Link` FROM `News` WHERE `Tags` = '{}' and " \
+              "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR) LIMIT 15".format(value)
 
-        with connection:
-            with connection.cursor() as cursor:
-                sql = "SELECT `News`, " \
-                      "`Link` FROM `News` WHERE `Tags` = '{}' and " \
-                      "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR) LIMIT 15".format(value)
+        result = connector.fetch_all(select_query, None)
 
-                cursor.execute(sql)
-                result = cursor.fetchall()
-                connection.commit()
-                result = [(x['News'], x['Link']) for x in result]
+        result = [(x['News'], x['Link']) for x in result]
 
         return result
 
@@ -239,55 +271,34 @@ class ParseNews:
 
     def get_tags_in_base(self):
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
-
-        with connection:
-            with connection.cursor() as cursor:
-
-                sql = "SELECT DISTINCT `Tags` FROM `News` "
-                cursor.execute(sql)
-
-                result = cursor.fetchall()
-                result = [x['Tags'] for x in result]
+        select_query = "SELECT DISTINCT `Tags` FROM `News` "
+        result = connector.fetch_all(select_query, None)
+        result = [x['Tags'] for x in result]
 
         return result
 
     def get_check_news(self, value):
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
 
-        with connection:
-            with connection.cursor() as cursor:
-                sql = "SELECT `Link` FROM `News` WHERE `Tags` = '{}' and " \
-                      "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR)".format(value)
+        select_query = "SELECT `Link` FROM `News` WHERE `Tags` = '{}' and " \
+              "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR)".format(value)
 
-                cursor.execute(sql)
-                result = cursor.fetchall()
-                connection.commit()
-                result = [x['Link'] for x in result]
+        result = connector.fetch_all(select_query, None)
+
+        result = [x['Link'] for x in result]
 
         return result
 
     def get_dict_news(self):
 
-        connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
-                                     charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
-        with connection:
-            with connection.cursor() as cursor:
+        distinct_query = "SELECT DISTINCT `Tags` FROM `News` "
+        result = connector.fetch_all(distinct_query, None)
+        tag = [x['Tags'] for x in result]
+        dict_news = dict()
+        dict_news['Tags'] = tag
 
-                sql = "SELECT DISTINCT `Tags` FROM `News` "
-                cursor.execute(sql)
-
-                result = cursor.fetchall()
-
-                tag = [x['Tags'] for x in result]
-                dict_news = dict()
-                dict_news['Tags'] = tag
-
-                return dict_news
+        return dict_news
 
 
 class Users:
@@ -298,68 +309,38 @@ class Users:
 
         """Adds users to the database"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
-
-        with connection:
-            with connection.cursor() as cursor:
-
-                insert = "INSERT INTO `Users` (`id`) VALUES (%s)"
-                cursor.execute(insert, value)
-
-                connection.commit()
+        insert_query = "INSERT INTO `Users` (`id`) VALUES (%s)"
+        connector.execute(insert_query, None)
 
     def get_delete_user(self, value):
 
         """Delete users to the database"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
-        with connection:
-            with connection.cursor() as cursor:
-
-                delete = "DELETE FROM `Users` WHERE `id` = {}".format(value)
-                cursor.execute(delete)
-
-                connection.commit()
+        delete_query = "DELETE FROM `Users` WHERE `id` = {}".format(value)
+        connector.execute(delete_query, None)
 
     def get_check_user(self, value):
 
         """Check user"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        select_query= "SELECT * FROM `Users` WHERE `id` = '{}'".format(value)
 
-        with connection:
-            with connection.cursor() as cursor:
+        result = connector.fetch_one(select_query, None)
 
-                sql = "SELECT * FROM `Users` WHERE `id` = '{}'".format(value)
-                cursor.execute(sql)
-                result = cursor.fetchone()
-
-                connection.commit()
-
-                if result:
-                    return True
-                else:
-                    return False
+        if result:
+            return True
+        else:
+            return False
 
     def get_show_user(self):
 
         """Show users"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        select_query = "SELECT * FROM `Users`"
 
-        with connection:
-            with connection.cursor() as cursor:
+        result = connector.fetch_all(select_query, None)
 
-                sql = "SELECT * FROM `Users`"
-                cursor.execute(sql)
-
-                result = cursor.fetchall()
-
-                return result
+        return result
 
 
 class Tags:
@@ -372,105 +353,65 @@ class Tags:
 
         tag = tag.title()
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        if self.get_check_tags(id_tag, tag):
+            return 'tag yze est'
 
-        with connection:
-            with connection.cursor() as cursor:
+        else:
+            insert_query = "INSERT INTO `Tags`(`id`, `tag`) VALUES (%s, %s)"
+            connector.execute(insert_query, (id_tag, tag))
 
-                if self.get_check_tags(id_tag, tag):
-                    return 'tag yze est'
-
-                else:
-                    insert = "INSERT INTO `Tags`(`id`, `tag`) VALUES (%s, %s)"
-                    cursor.execute(insert, (id_tag, tag))
-
-                    connection.commit()
 
     def get_check_tags(self, id_tag, tag):
 
         """Check tags"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        select_query = "SELECT `id` FROM `Tags` WHERE `tag` = '{}' AND `id` = '{}'".format(tag, id_tag)
 
-        with connection:
-            with connection.cursor() as cursor:
+        result = connector.fetch_all(select_query, None)
 
-                sql = "SELECT `id` FROM `Tags` WHERE `tag` = '{}' AND `id` = '{}'".format(tag, id_tag)
-
-                result = cursor.execute(sql)
-                result = cursor.fetchall()
-
-                if result:
-                    return True
-                else:
-                    return False
+        if result:
+            return True
+        else:
+            return False
 
     def get_all_delete_tags(self, id_tag):
 
         """Delete all tags"""
 
-        connection = pymysql.connect(host='127.0.0.1', user='telebot', password='123321', database='telebot',
-                                     charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+        delete_query = "DELETE FROM `Tags` WHERE `id` = '{}'".format(id_tag)
 
-        with connection:
-            with connection.cursor() as cursor:
-
-                sql = "DELETE FROM `Tags` WHERE `id` = '{}'".format(id_tag)
-
-                result = cursor.execute(sql)
-
-                connection.commit()
+        connector.execute(delete_query, None)
 
     def get_delete_tags(self, id_tag, value):
 
         """Delete tag"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+        delete_query = "DELETE FROM `Tags` WHERE `id` = '{}' and `tag` = '{}'".format(id_tag, value)
 
-        with connection:
-            with connection.cursor() as cursor:
+        connector.execute(delete_query, None)
 
-                sql = "DELETE FROM `Tags` WHERE `id` = '{}' and `tag` = '{}'".format(id_tag, value)
-                result = cursor.execute(sql)
-
-                connection.commit()
 
     def get_show_tags(self, id_tag=None):
 
         """Show tags"""
 
-        connection = pymysql.connect(host="127.0.0.1", user="telebot", password="123321", database="telebot",
-                                     charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
-
         if id:
 
-            with connection:
-                with connection.cursor() as cursor:
+            select_query = "SELECT * FROM `Tags` WHERE `id` ='{}'".format(id_tag)
 
-                    sql = "SELECT * FROM `Tags` WHERE `id` ='{}'".format(id_tag)
-                    cursor.execute(sql)
+            result = connector.fetch_all(select_query, None)
+            tags = [x['tag'] for x in result]
 
-                    result = cursor.fetchall()
-
-                    tags = [x['tag'] for x in result]
-
-                    return tags
+            return tags
 
         else:
 
-            with connection:
-                with connection.cursor() as cursor:
-                    sql = "SELECT DISTINCT `tag` FROM `Tags` "
-                    cursor.execute(sql)
+            select_query = "SELECT DISTINCT `tag` FROM `Tags`"
 
-                    result = cursor.fetchall()
+            result = connector.fetch_all(select_query, None)
+            tags = [x['tag'] for x in result]
 
-                    tags = [x['tag'] for x in result]
-
-                    return tags
+            return tags
 
 
 class SendData:

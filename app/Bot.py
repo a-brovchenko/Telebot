@@ -6,7 +6,6 @@ import time
 from Main import ParseNews, Users, Tags, SendData
 import schedule
 
-
 bot = telebot.TeleBot("6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0", num_threads=20)
 
 
