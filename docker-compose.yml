@@ -8,6 +8,7 @@ services:
     user: "1000:1000"
     volumes:
       - db_data:/var/lib/mysql
+      - ./app/queries.sql:/docker-entrypoint-initdb.d/queries.sql
     restart: always
     ports:
       - "3306:3306"
@@ -18,6 +19,11 @@ services:
       - MYSQL_USER
       - MYSQL_PASSWORD
       - MYSQL_ROOT_HOST
+    healthcheck:
+      test: "mysql -uroot -p$$MYSQL_ROOT_PASSWORD  -e 'SELECT * FROM News' telebot"
+      interval: 3s
+      timeout: 3s
+      retries: 3
 
   # phpmyadmin
   phpmyadmin:
@@ -41,8 +47,6 @@ services:
     build:
       context: app
       dockerfile: ../Dockerfile
-    ports:
-      - "8081:8081"
     environment:
       - DB_HOST
 
@@ -52,4 +56,4 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: "${HOME}/mysql"
+      device: "${HOME}/mysql.new"

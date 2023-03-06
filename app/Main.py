@@ -1,63 +1,82 @@
 import os
+import time
 import re
 import requests
 from bs4 import BeautifulSoup as bs
 import pymysql
+from pymysql import cursors
+from pymysql.err import OperationalError
 import json
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from dbutils.pooled_db import PooledDB
 
-db_host = os.getenv("DB_HOST", default="127.0.0.1")
-
-mysql_config = {
-    "host": f"{db_host}",
-    "port": 3306,
-    "db": "telebot",
-    "user": "telebot",
-    "password": "123321",
-    "charset": "utf8mb4",
-    "cursorclass": pymysql.cursors.DictCursor,
-    "autocommit": True,
-}
-
-pool_config = {
-    "creator": pymysql,
-    "maxconnections": 6,
-    "mincached": 2,
-    "maxcached": 5,
-    "maxshared": 3,
-    "blocking": True,
-    "maxusage": None,
-    "setsession": [],
-    "ping": 0,
-}
-
-pool = PooledDB(**mysql_config, **pool_config)
-
 
 class MySqlPool:
+
     def __init__(self):
-        self._connection = pool.connection()
-        self._cursor = self._connection.cursor()
+
+        db_host = os.getenv("DB_HOST", default="127.0.0.1")
+        mysql_config = {
+            "host": f"{db_host}",
+            "port": 3306,
+            "db": "telebot",
+            "user": "telebot",
+            "password": "123321",
+            "charset": "utf8mb4",
+            "cursorclass": pymysql.cursors.DictCursor,
+            "autocommit": True,
+        }
+        pool_config = {
+            "creator": pymysql,
+            "maxconnections": 6,
+            "mincached": 2,
+            "maxcached": 5,
+            "maxshared": 3,
+            "blocking": True,
+            "maxusage": None,
+            "setsession": [],
+            "ping": 7,
+        }
+
+        retry_delay = 1
+        max_retry_delay = 60
+        retries = 0
+        max_retries = 10
+
+        while True:
+            try:
+                pool = PooledDB(**mysql_config, **pool_config)
+
+                self.conn = pool.connection()
+                self.cursor = self.conn.cursor()
+                return None
+            except OperationalError as e:
+                if retries >= max_retries:
+                    raise e
+                retries += 1
+                print(f"Failed to connect to MySQL server (attempt {retries} of {max_retries}): {str(e)}")
+                delay = min(retry_delay * 2 ** retries, max_retry_delay)
+                print(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
 
     def fetch_one(self, sql, args):
-        self._cursor.execute(sql, args)
-        result = self._cursor.fetchone()
+        self.cursor.execute(sql, args)
+        result = self.cursor.fetchone()
         return result
 
     def fetch_all(self, sql, args):
-        self._cursor.execute(sql, args)
-        result = self._cursor.fetchall()
+        self.cursor.execute(sql, args)
+        result = self.cursor.fetchall()
         return result
 
     def execute(self, sql, args):
-        self._cursor.execute(sql, args)
-
+        self.cursor.execute(sql, args)
 
     def __del__(self):
-        self._connection.close()
+        self.conn.close()
+
 
 connector = MySqlPool()
 
@@ -174,11 +193,11 @@ class ParseNews:
 
         """add news to database"""
 
-        list = self.get_search_news(value)
+        list_news = self.get_search_news(value)
         check_list = self.get_check_news(value)
 
         # Isert new values
-        for i in list:
+        for i in list_news:
 
             if i[1] in check_list:
 
@@ -201,10 +220,10 @@ class ParseNews:
     def get_show_news(self, value):
 
         select_query = "SELECT `News`, " \
-              "`Link` FROM `News` WHERE `Tags` = '{}' and " \
-              "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR) LIMIT 15".format(value)
+              "`Link` FROM `News` WHERE `Tags` = (%s) and " \
+              "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR) LIMIT 15"
 
-        result = connector.fetch_all(select_query, None)
+        result = connector.fetch_all(select_query, value)
 
         result = [(x['News'], x['Link']) for x in result]
 
@@ -281,18 +300,16 @@ class ParseNews:
 
     def get_check_news(self, value):
 
+        select_query = "SELECT `Link` FROM `News` WHERE `Tags` = (%s) and " \
+              "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR)"
 
-        select_query = "SELECT `Link` FROM `News` WHERE `Tags` = '{}' and " \
-              "`DateInsert` > DATE_SUB(NOW(), INTERVAL 6 HOUR)".format(value)
-
-        result = connector.fetch_all(select_query, None)
+        result = connector.fetch_all(select_query, value)
 
         result = [x['Link'] for x in result]
 
         return result
 
     def get_dict_news(self):
-
 
         distinct_query = "SELECT DISTINCT `Tags` FROM `News` "
         result = connector.fetch_all(distinct_query, None)
@@ -312,22 +329,22 @@ class Users:
         """Adds users to the database"""
 
         insert_query = "INSERT INTO `Users` (`id`) VALUES (%s)"
-        connector.execute(insert_query, None)
+        connector.execute(insert_query, value)
 
     def get_delete_user(self, value):
 
         """Delete users to the database"""
 
-        delete_query = "DELETE FROM `Users` WHERE `id` = {}".format(value)
-        connector.execute(delete_query, None)
+        delete_query = "DELETE FROM `Users` WHERE `id` = (%s)"
+        connector.execute(delete_query, value)
 
     def get_check_user(self, value):
 
         """Check user"""
 
-        select_query= "SELECT * FROM `Users` WHERE `id` = '{}'".format(value)
+        select_query= "SELECT * FROM `Users` WHERE `id` = (%s)"
 
-        result = connector.fetch_one(select_query, None)
+        result = connector.fetch_one(select_query, value)
 
         if result:
             return True
@@ -367,9 +384,9 @@ class Tags:
 
         """Check tags"""
 
-        select_query = "SELECT `id` FROM `Tags` WHERE `tag` = '{}' AND `id` = '{}'".format(tag, id_tag)
+        select_query = "SELECT `id` FROM `Tags` WHERE `tag` = (%s) AND `id` = (%s)"
 
-        result = connector.fetch_all(select_query, None)
+        result = connector.fetch_all(select_query, (tag, id_tag))
 
         if result:
             return True
@@ -380,18 +397,17 @@ class Tags:
 
         """Delete all tags"""
 
-        delete_query = "DELETE FROM `Tags` WHERE `id` = '{}'".format(id_tag)
+        delete_query = "DELETE FROM `Tags` WHERE `id` = (%s)"
 
-        connector.execute(delete_query, None)
+        connector.execute(delete_query, id_tag)
 
     def get_delete_tags(self, id_tag, value):
 
         """Delete tag"""
 
-        delete_query = "DELETE FROM `Tags` WHERE `id` = '{}' and `tag` = '{}'".format(id_tag, value)
+        delete_query = "DELETE FROM `Tags` WHERE `id` = (%s) and `tag` = (%s)"
 
-        connector.execute(delete_query, None)
-
+        connector.execute(delete_query, (id_tag, value))
 
     def get_show_tags(self, id_tag=None):
 
@@ -399,9 +415,9 @@ class Tags:
 
         if id:
 
-            select_query = "SELECT * FROM `Tags` WHERE `id` ='{}'".format(id_tag)
+            select_query = "SELECT * FROM `Tags` WHERE `id` = (%s)"
 
-            result = connector.fetch_all(select_query, None)
+            result = connector.fetch_all(select_query, id_tag)
             tags = [x['tag'] for x in result]
 
             return tags
