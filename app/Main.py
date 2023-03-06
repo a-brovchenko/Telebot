@@ -1,3 +1,4 @@
+import os
 import re
 import requests
 from bs4 import BeautifulSoup as bs
@@ -8,9 +9,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from dbutils.pooled_db import PooledDB
 
-
+db_host = os.getenv("DB_HOST", default="127.0.0.1")
 mysql_config = {
-    "host": "127.0.0.1",
+    "host": f"{db_host}",
     "port": 3306,
     "db": "telebot",
     "user": "telebot",

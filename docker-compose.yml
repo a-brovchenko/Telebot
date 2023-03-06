@@ -43,6 +43,8 @@ services:
       dockerfile: ../Dockerfile
     ports:
       - "8081:8081"
+    environment:
+      - DB_HOST
 
 volumes:
   db_data:
