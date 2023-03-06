@@ -3,7 +3,7 @@ import telebot
 from telegram_bot_pagination import InlineKeyboardPaginator
 import threading
 import time
-from Main import ParseNews , Users , Tags, Send_Data
+from Main import ParseNews, Users, Tags, SendData
 import schedule
 
 
@@ -13,7 +13,7 @@ bot = telebot.TeleBot("6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0", num_thre
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard= True)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     btn1 = types.KeyboardButton("📰 Top news")
     btn2 = types.KeyboardButton("✅ My subscriptions")
@@ -24,9 +24,10 @@ def start(message):
 
     text = f"Hello !!!\nI'm a news bot who wants to share breaking news with you"
 
-    bot.send_message(message.chat.id, text, parse_mode='html',reply_markup=markup)
+    bot.send_message(message.chat.id, text, parse_mode='html', reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call:True)
+
+@bot.callback_query_handler(func=lambda call: True)
 def main(call):
 
     user = Users()
@@ -93,14 +94,14 @@ def main(call):
         page = int(call.data.split('#')[1])
         # bot.delete_message(call.message.chat.id, call.message.message_id)
 
-        send_news_user(call.data.split('#')[0],page, call.message.chat.id, call.message.message_id)
+        send_news_user(call.data.split('#')[0], page, call.message.chat.id, call.message.message_id)
+
 
 @bot.message_handler(content_types=['text'])
 def get_user_text(message):
 
     user = Users()
     tag = Tags()
-
 
     if message.text == '✅ My subscriptions':
 
@@ -111,20 +112,22 @@ def get_user_text(message):
 
                 markup = types.InlineKeyboardMarkup()
 
-                btn1 = types.InlineKeyboardButton('✅ Add tag', callback_data= '✅ Add tag')
-                btn2 = types.InlineKeyboardButton('❌ Delete tag', callback_data= '❌ Delete tag')
+                btn1 = types.InlineKeyboardButton('✅ Add tag', callback_data='✅ Add tag')
+                btn2 = types.InlineKeyboardButton('❌ Delete tag', callback_data='❌ Delete tag')
                 btn3 = types.InlineKeyboardButton('🚫 Unsubscribe', callback_data='🚫 Unsubscribe')
 
-                markup.add(btn1,btn2)
+                markup.add(btn1, btn2)
                 markup.add(btn3)
 
-                bot.send_message(message.chat.id,f"You are subscribed to:\n{news}", parse_mode='HTML', reply_markup=markup)
+                bot.send_message(message.chat.id, f"You are subscribed to:\n{news}",
+                                 parse_mode='HTML',
+                                 reply_markup=markup)
 
             else:
 
                 markup = types.InlineKeyboardMarkup()
 
-                btn1 = types.InlineKeyboardButton('✅ Add tag', callback_data= '✅ Add tag')
+                btn1 = types.InlineKeyboardButton('✅ Add tag', callback_data='✅ Add tag')
 
                 markup.add(btn1)
 
@@ -145,11 +148,9 @@ def get_user_text(message):
 
             bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
 
-
     elif message.text == "📰 Top news":
 
-        send_news_user(tags_news= "World", id = message.chat.id)
-
+        send_news_user(tags_news="World", id_user=message.chat.id)
 
     elif message.text == "📨 News without subscription":
 
@@ -159,15 +160,15 @@ def get_user_text(message):
         bot.register_next_step_handler(news, show_news_without_subscription)
 
 
-
 def show_news_without_subscription(news):
 
     news.text = news.text.title()
-    send_news_user(news.text, id = news.chat.id)
+    send_news_user(news.text, id_user=news.chat.id)
 
-def send_news_user(tags_news=None, page=None, id=None, message_id = None):
 
-    send_data = Send_Data()
+def send_news_user(tags_news=None, page=None, id_user=None, message_id=None):
+
+    send_data = SendData()
     parse_news = ParseNews()
     tags = Tags()
     users = Users()
@@ -188,8 +189,8 @@ def send_news_user(tags_news=None, page=None, id=None, message_id = None):
 
                 else:
 
-                    pages = [f"<b>News by tag {tag}\n\n" \
-                             f"{x[0]}</b>\n\n<b>" \
+                    pages = [f"<b>News by tag {tag}\n\n"
+                             f"{x[0]}</b>\n\n<b>" 
                              f"<a href='{x[1]}'>Source</a></b>\n\n" for x in news]
 
                     paginator = InlineKeyboardPaginator(len(pages),
@@ -198,7 +199,6 @@ def send_news_user(tags_news=None, page=None, id=None, message_id = None):
                     try:
 
                         bot.send_message(i['id'], pages[0], reply_markup=paginator.markup, parse_mode='HTML')
-
 
                     except telebot.apihelper.ApiTelegramException as err:
 
@@ -217,12 +217,12 @@ def send_news_user(tags_news=None, page=None, id=None, message_id = None):
 
         if not news:
 
-            bot.send_message(id, f"No new news for your tag - <b>{tags_news}</b>", parse_mode='HTML')
+            bot.send_message(id_user, f"No new news for your tag - <b>{tags_news}</b>", parse_mode='HTML')
 
         else:
 
-            pages = [f"<b>News by tag {tags_news}\n\n" \
-                     f"{x[0]}</b>\n\n<b>" \
+            pages = [f"<b>News by tag {tags_news}\n\n" 
+                     f"{x[0]}</b>\n\n<b>" 
                      f"<a href='{x[1]}'>Source</a></b>\n\n" for x in parse_news.get_show_news(tags_news)]
 
             paginator = InlineKeyboardPaginator(len(pages),
@@ -233,15 +233,15 @@ def send_news_user(tags_news=None, page=None, id=None, message_id = None):
 
                 if not page:
 
-                    bot.send_message(id, pages[0], reply_markup=paginator.markup, parse_mode='HTML')
+                    bot.send_message(id_user, pages[0], reply_markup=paginator.markup, parse_mode='HTML')
 
                 else:
 
-                    bot.edit_message_text(chat_id=id,
+                    bot.edit_message_text(chat_id=id_user,
                                           message_id=message_id,
-                                          text = pages[page - 1],
+                                          text=pages[page - 1],
                                           reply_markup=paginator.markup,
-                                          parse_mode='HTML' )
+                                          parse_mode='HTML')
 
             except telebot.apihelper.ApiTelegramException as err:
 
@@ -255,7 +255,7 @@ def add_tags_in_base(tag_add):
 
     tag = Tags()
 
-    if tag.get_check_tags(tag_add.from_user.id,tag_add.text):
+    if tag.get_check_tags(tag_add.from_user.id, tag_add.text):
 
         tag.get_add_tags(tag_add.from_user.id, tag_add.text)
 
@@ -266,25 +266,26 @@ def add_tags_in_base(tag_add):
 
         markup.add(btn1, btn2)
 
-        bot.send_message(tag_add.chat.id , 'You have already added a tag', parse_mode= 'HTML', reply_markup = markup)
+        bot.send_message(tag_add.chat.id, 'You have already added a tag', parse_mode='HTML', reply_markup=markup)
 
     else:
 
-        tag.get_add_tags(tag_add.from_user.id,tag_add.text)
+        tag.get_add_tags(tag_add.from_user.id, tag_add.text)
 
         markup = types.InlineKeyboardMarkup()
 
         btn1 = types.InlineKeyboardButton("✅ Add another tag", callback_data='✅ Add tag')
         btn2 = types.InlineKeyboardButton("⬅️Back", callback_data='menu')
 
-        markup.add(btn1,btn2)
+        markup.add(btn1, btn2)
 
-        bot.send_message(tag_add.chat.id, f"Tag added successfully", parse_mode="HTML",reply_markup=markup)
+        bot.send_message(tag_add.chat.id, f"Tag added successfully", parse_mode="HTML", reply_markup=markup)
+
 
 def delete_tag(tag_dell):
 
     tag = Tags()
-    tag.get_delete_tags(tag_dell.from_user.id,tag_dell.text)
+    tag.get_delete_tags(tag_dell.from_user.id, tag_dell.text)
 
     markup = types.InlineKeyboardMarkup()
 
@@ -294,6 +295,7 @@ def delete_tag(tag_dell):
     markup.add(btn1, btn2)
 
     bot.send_message(tag_dell.chat.id, f"Tagr removed", parse_mode="HTML", reply_markup=markup)
+
 
 def get_parse_news_from_tag():
 
@@ -305,6 +307,7 @@ def get_parse_news_from_tag():
         parse_news.get_add_news(tags)
 
     parse_news.get_add_news('world')
+
 
 def delete_old_news():
 
@@ -320,7 +323,6 @@ def thread():
     schedule.every().day.at("12:00").do(send_news_user)
     schedule.every().day.at("20:00").do(send_news_user)
 
-
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -330,6 +332,3 @@ if __name__ == '__main__':
 
     thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
     thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
-
-
-

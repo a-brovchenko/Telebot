@@ -13,6 +13,7 @@ class ParseNews:
     """Class for parsing and working with news"""
 
     def get_search_news(self, value):
+
         """Search by sites from the database file 'search.json'"""
 
         value = value.title()
@@ -60,10 +61,9 @@ class ParseNews:
 
                             else:
 
-                                link = re.match("^h.*\.(com|uk|org|ca)", news["site"]).group()
+                                link = re.match(r"^h.*\.(com|uk|org|ca)", news["site"]).group()
                                 list_news.append([i.a.get_text(strip=True, separator=' '),
                                                   link + i.a.get("href"), value, int(date)])
-
 
                 except AttributeError:
                     continue
@@ -97,7 +97,8 @@ class ParseNews:
 
                         if int(date) >= int(self.get_today_data()):
 
-                            list_news.append([i.a.get_text(strip=True, separator=' '), i.a.get("href"), value, int(date)])
+                            list_news.append([i.a.get_text(strip=True, separator=' '),
+                                              i.a.get("href"), value, int(date)])
 
                 except AttributeError:
                     continue
@@ -185,11 +186,10 @@ class ParseNews:
 
         elif "www.aljazeera.com" in site:
 
-            data = re.search(r'\d ... \d{4}',value).group()
+            data = re.search(r'\d ... \d{4}', value).group()
             data = datetime.strptime(data, '%d %b %Y')
 
             return datetime.timestamp(data)
-
 
         elif "www.nytimes.com" in site:
 
@@ -197,11 +197,10 @@ class ParseNews:
 
                 return datetime.timestamp(datetime.now())
 
-            data = re.search(r'\w{1,}\. \d{1,2}', value).group()
+            data = re.search(r'\w+\. \d{1,2}', value).group()
             data = datetime.strptime(data, '%b. %d')
 
             return datetime.timestamp(data)
-
 
         elif "www.thetimes.co.uk" in site:
 
@@ -212,7 +211,7 @@ class ParseNews:
 
         elif "www.ndtv.com" in site:
 
-            data = re.search(r'\w+\s{1,2}\d{1,2}\, \d{4}', value).group()
+            data = re.search(r'\w+\s{1,2}\d{1,2}, \d{4}', value).group()
             data = datetime.strptime(data, '%B %d, %Y')
 
             return datetime.timestamp(data)
@@ -227,13 +226,13 @@ class ParseNews:
 
                 data = re.search(r'\w{3} \d{1,2}', value).group()
                 data = f'{data} {datetime.now().year}'
-                data = datetime.strptime(data,'%b %d %Y')
+                data = datetime.strptime(data, '%b %d %Y')
 
                 return datetime.timestamp(data)
 
         elif "www.washingtonpost.com" in site:
 
-            data = re.search(r'\w{1,} \d{1,2}\, \d{4}', value).group()
+            data = re.search(r'\w+ \d{1,2}, \d{4}', value).group()
             data = datetime.strptime(data, '%B %d, %Y')
 
             return datetime.timestamp(data)
@@ -285,15 +284,10 @@ class ParseNews:
                 result = cursor.fetchall()
 
                 tag = [x['Tags'] for x in result]
-                dict_news = {}
+                dict_news = dict()
                 dict_news['Tags'] = tag
 
                 return dict_news
-
-
-
-
-
 
 
 class Users:
@@ -311,7 +305,7 @@ class Users:
             with connection.cursor() as cursor:
 
                 insert = "INSERT INTO `Users` (`id`) VALUES (%s)"
-                cursor.execute(insert, (value))
+                cursor.execute(insert, value)
 
                 connection.commit()
 
@@ -324,10 +318,10 @@ class Users:
         with connection:
             with connection.cursor() as cursor:
 
-                    delete = "DELETE FROM `Users` WHERE `id` = {}".format(value)
-                    cursor.execute(delete)
+                delete = "DELETE FROM `Users` WHERE `id` = {}".format(value)
+                cursor.execute(delete)
 
-                    connection.commit()
+                connection.commit()
 
     def get_check_user(self, value):
 
@@ -367,11 +361,12 @@ class Users:
 
                 return result
 
+
 class Tags:
 
     """Class for working with tag"""
 
-    def get_add_tags(self,id, tag):
+    def get_add_tags(self, id_tag, tag):
 
         """Adds tag to Database"""
 
@@ -383,16 +378,16 @@ class Tags:
         with connection:
             with connection.cursor() as cursor:
 
-                if self.get_check_tags(id,tag):
+                if self.get_check_tags(id_tag, tag):
                     return 'tag yze est'
 
                 else:
                     insert = "INSERT INTO `Tags`(`id`, `tag`) VALUES (%s, %s)"
-                    cursor.execute(insert, (id, tag))
+                    cursor.execute(insert, (id_tag, tag))
 
                     connection.commit()
 
-    def get_check_tags(self, id, tag):
+    def get_check_tags(self, id_tag, tag):
 
         """Check tags"""
 
@@ -402,7 +397,8 @@ class Tags:
         with connection:
             with connection.cursor() as cursor:
 
-                sql = "SELECT `id` FROM `Tags` WHERE `tag` = '{}' AND `id` = '{}'".format(tag,id)
+                sql = "SELECT `id` FROM `Tags` WHERE `tag` = '{}' AND `id` = '{}'".format(tag, id_tag)
+
                 result = cursor.execute(sql)
                 result = cursor.fetchall()
 
@@ -411,7 +407,7 @@ class Tags:
                 else:
                     return False
 
-    def get_all_delete_tags(self,id):
+    def get_all_delete_tags(self, id_tag):
 
         """Delete all tags"""
 
@@ -421,12 +417,13 @@ class Tags:
         with connection:
             with connection.cursor() as cursor:
 
-                sql = "DELETE FROM `Tags` WHERE `id` = '{}'".format(id)
+                sql = "DELETE FROM `Tags` WHERE `id` = '{}'".format(id_tag)
+
                 result = cursor.execute(sql)
 
                 connection.commit()
 
-    def get_delete_tags(self,id, value ):
+    def get_delete_tags(self, id_tag, value):
 
         """Delete tag"""
 
@@ -436,12 +433,12 @@ class Tags:
         with connection:
             with connection.cursor() as cursor:
 
-                sql = "DELETE FROM `Tags` WHERE `id` = '{}' and `tag` = '{}'".format(id, value)
+                sql = "DELETE FROM `Tags` WHERE `id` = '{}' and `tag` = '{}'".format(id_tag, value)
                 result = cursor.execute(sql)
 
                 connection.commit()
 
-    def get_show_tags(self,id = None):
+    def get_show_tags(self, id_tag=None):
 
         """Show tags"""
 
@@ -453,7 +450,7 @@ class Tags:
             with connection:
                 with connection.cursor() as cursor:
 
-                    sql ="SELECT * FROM `Tags` WHERE `id` ='{}'".format(id)
+                    sql = "SELECT * FROM `Tags` WHERE `id` ='{}'".format(id_tag)
                     cursor.execute(sql)
 
                     result = cursor.fetchall()
@@ -475,7 +472,8 @@ class Tags:
 
                     return tags
 
-class Send_Data:
+
+class SendData:
 
     """Class for sending data to the bot"""
 
@@ -487,8 +485,8 @@ class Send_Data:
 
         result = {}
 
-        res = {x['id']:tag.get_show_tags(x['id']) for x in user.get_show_user() }
-        user_tag = [{'id': i , 'tag' : res[i]} for i in res]
+        res = {x['id']: tag.get_show_tags(x['id']) for x in user.get_show_user()}
+        user_tag = [{'id': i, 'tag': res[i]} for i in res]
 
         tags_db = tags_db.get_dict_news()['Tags']
 
@@ -496,4 +494,3 @@ class Send_Data:
         result['Users_tag'] = user_tag
 
         return result
-
