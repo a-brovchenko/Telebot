@@ -56,4 +56,4 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: "${HOME}/mysql.new"
+      device: "${HOME}/mysql"
