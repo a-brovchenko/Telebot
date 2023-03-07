@@ -379,7 +379,6 @@ class Tags:
             insert_query = "INSERT INTO `Tags`(`id`, `tag`) VALUES (%s, %s)"
             connector.execute(insert_query, (id_tag, tag))
 
-
     def get_check_tags(self, id_tag, tag):
 
         """Check tags"""
