@@ -51,10 +51,14 @@ class MySqlPool:
 
                 self.conn = pool.connection()
                 self.cursor = self.conn.cursor()
-                return None
+
+                break
+
             except OperationalError as e:
+
                 if retries >= max_retries:
                     raise e
+
                 retries += 1
                 print(f"Failed to connect to MySQL server (attempt {retries} of {max_retries}): {str(e)}")
                 delay = min(retry_delay * 2 ** retries, max_retry_delay)
@@ -213,7 +217,7 @@ class ParseNews:
         """Deleting news older than 8 hours"""
 
         delete_query = "DELETE FROM `News` " \
-              "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 6 HOUR)"
+                "WHERE `DateInsert` < DATE_SUB(NOW(), INTERVAL 6 HOUR)"
 
         connector.execute(delete_query, None)
 
@@ -342,7 +346,7 @@ class Users:
 
         """Check user"""
 
-        select_query= "SELECT * FROM `Users` WHERE `id` = (%s)"
+        select_query = "SELECT * FROM `Users` WHERE `id` = (%s)"
 
         result = connector.fetch_one(select_query, value)
 
@@ -452,3 +456,4 @@ class SendData:
         result['Users_tag'] = user_tag
 
         return result
+

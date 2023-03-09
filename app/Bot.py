@@ -319,7 +319,7 @@ def thread():
     schedule.every(45).minutes.do(get_parse_news_from_tag)
     schedule.every(45).minutes.do(delete_old_news)
 
-    schedule.every().day.at("12:00").do(send_news_user)
+    schedule.every().day.at("14:30").do(send_news_user)
     schedule.every().day.at("20:00").do(send_news_user)
 
     while True:
