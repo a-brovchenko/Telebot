@@ -11,6 +11,7 @@ from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from dbutils.pooled_db import PooledDB
+from logger import logging
 
 
 class MySqlPool:
@@ -52,6 +53,8 @@ class MySqlPool:
                 self.conn = pool.connection()
                 self.cursor = self.conn.cursor()
 
+                logging.info("MySQL connection initialized")
+
                 break
 
             except OperationalError as e:
@@ -60,9 +63,9 @@ class MySqlPool:
                     raise e
 
                 retries += 1
-                print(f"Failed to connect to MySQL server (attempt {retries} of {max_retries}): {str(e)}")
+                logging.error(f"Failed to connect to MySQL server (attempt {retries} of {max_retries}): {str(e)}")
                 delay = min(retry_delay * 2 ** retries, max_retry_delay)
-                print(f"Retrying in {delay} seconds...")
+                logging.info(f"Retrying in {delay} seconds...")
                 time.sleep(delay)
 
     def fetch_one(self, sql, args):

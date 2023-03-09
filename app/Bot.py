@@ -5,6 +5,8 @@ import threading
 import time
 from Main import ParseNews, Users, Tags, SendData
 import schedule
+import logging
+from logger import logging
 
 bot = telebot.TeleBot("6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0", num_threads=20)
 
@@ -319,8 +321,9 @@ def thread():
     schedule.every(45).minutes.do(get_parse_news_from_tag)
     schedule.every(45).minutes.do(delete_old_news)
 
-    schedule.every().day.at("14:30").do(send_news_user)
-    schedule.every().day.at("20:00").do(send_news_user)
+    # Tasks by UTC
+    schedule.every().day.at("10:00").do(send_news_user)
+    schedule.every().day.at("18:00").do(send_news_user)
 
     while True:
         schedule.run_pending()
@@ -330,4 +333,6 @@ def thread():
 if __name__ == '__main__':
 
     thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
+    logging.info("Telebot started")
     thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
+    logging.info("Telegram poller started")
