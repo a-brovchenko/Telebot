@@ -316,10 +316,10 @@ def delete_old_news():
     parse_news.get_delete_old_news()
 
 
-# def thread():
-#
-#     schedule.every(45).minutes.do(get_parse_news_from_tag)
-#     schedule.every(45).minutes.do(delete_old_news)
+def thread():
+
+    schedule.every(45).minutes.do(get_parse_news_from_tag)
+    schedule.every(45).minutes.do(delete_old_news)
 
     # Tasks by UTC
     schedule.every().day.at("10:00").do(send_news_user)
