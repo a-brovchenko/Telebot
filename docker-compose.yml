@@ -52,6 +52,8 @@ services:
       dockerfile: ../Dockerfile
     environment:
       - DB_HOST
+      - LOG_FILE
+      - API_TOKEN
 
 volumes:
   db_data:

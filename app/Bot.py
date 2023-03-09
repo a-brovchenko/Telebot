@@ -3,12 +3,12 @@ import telebot
 from telegram_bot_pagination import InlineKeyboardPaginator
 import threading
 import time
+import os
 from Main import ParseNews, Users, Tags, SendData
 import schedule
-import logging
 from logger import logging
 
-bot = telebot.TeleBot("6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0", num_threads=20)
+bot = telebot.TeleBot(os.getenv("API_TOKEN"), num_threads=20)
 
 
 @bot.message_handler(commands=['start', 'help'])

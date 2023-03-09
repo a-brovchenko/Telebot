@@ -69,3 +69,10 @@ Print full container start command:
 To reset expired mysql root password:
 
     ALTER USER 'root'@'%' IDENTIFIED BY '123321';
+
+#### To start telebot with docker compose
+
+Set telegram API token & run example:
+
+    export API_TOKEN='6048452494:AAFUrrPp54qBkleQW7iMZqJA4KXI_0jQkD0'
+    docker-compose up -d
