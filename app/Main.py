@@ -203,7 +203,7 @@ class ParseNews:
         list_news = self.get_search_news(value)
         check_list = self.get_check_news(value)
 
-        # Isert new values
+        # Insert new values
         for i in list_news:
 
             if i[1] in check_list:
@@ -419,7 +419,7 @@ class Tags:
 
         """Show tags"""
 
-        if id:
+        if id_tag:
 
             select_query = "SELECT * FROM `Tags` WHERE `id` = (%s)"
 
@@ -460,3 +460,5 @@ class SendData:
 
         return result
 
+a = SendData()
+print(a.send_data())
