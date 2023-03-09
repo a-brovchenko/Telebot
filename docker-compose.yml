@@ -46,7 +46,7 @@ services:
     container_name: bot
     restart: always
     volumes:
-      - /var/log/telebot.log:/var/log/telebot.log
+      - app/telebot.log:/app/telebot.log
     build:
       context: app
       dockerfile: ../Dockerfile
