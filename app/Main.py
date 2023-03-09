@@ -460,5 +460,3 @@ class SendData:
 
         return result
 
-a = SendData()
-print(a.send_data())
