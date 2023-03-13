@@ -1,3 +1,10 @@
+#### Links
+[Telegram bot link](https://t.me/WLNews_bot)
+
+[My telegram](https://t.me/brovchenko_a) / [My e-mail](mailto:a.brovchenko@unix4all.com)
+
+
+
 #### Install requirements and virtualenv
 
     cd app
